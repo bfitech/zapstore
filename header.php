@@ -22,7 +22,7 @@ function perish($str='') {
  * This can be previously declared e.g. for testing.
  */
 if (!function_exists('pj')) {
-function pj($errno=0, $data=[], $cache=0) {
+function pj($errno=0, $data=[], $http_errno=200, $cache=0) {
 	$js = json_encode(compact('errno', 'data'));
 	@header("Content-Length: ".strlen($js));
 	if (DEBUG)
@@ -31,9 +31,9 @@ function pj($errno=0, $data=[], $cache=0) {
 		@header('Content-Type: application/json');
 	if ($cache) {
 		$age = (isset($_POST) && !empty($_POST)) ? 0 : 3600 * 24;
-		_header(0, $age, 0, 200);
+		_header(0, $age, 0, $http_errno);
 	} else
-		_header(0, 0, 0, 200);
+		_header(0, 0, 0, $http_errno);
 	die($js);
 }
 }

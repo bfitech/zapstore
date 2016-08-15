@@ -17,13 +17,10 @@ setlocale(LC_CTYPE, "en_US.UTF-8");
  *
  * @params array $data A dict to verify.
  * @params array $keys A list of keys the dict must have.
- * @params bool $is_ajax If true, it will immediately
- *     end script with JSON response.
- * @returns void|bool|dict End of script for failing
- *     ajax test, false for failing regular test, verified
+ * @returns bool|dict False for failing regular test, verified
  *     dict for successful test.
  */
-function _check_data($data, $keys, $is_ajax=true) {
+function _check_data($data, $keys) {
 	$keys = (array)$keys;
 	foreach ($keys as $key) {
 		if (!isset($data[$key]) || trim($data[$key]) == '') {
