@@ -185,10 +185,17 @@ function _magic($fname) {
 	}
 	// default
 	$mime = 'application/octet-stream';
-	// using mime_content_type
-	$check_mime = @mime_content_type($fname);
-	if ($check_mime)
-		$mime = $check_mime;
+	if (function_exists('mime_content_type')) {
+		// using mime_content_type if exists
+		$check_mime = @mime_content_type($fname);
+		if ($check_mime)
+			$mime = $check_mime;
+	} elseif (file_exists('/usr/bin/file')) {
+		// using `file`
+		$sh = "/usr/bin/file -b --mime \"$fname\"";
+		$mime = `$sh`; 
+	}
+
 	return $mime;
 }
 
