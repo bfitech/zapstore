@@ -335,5 +335,13 @@ class db {
 		return $this->_exec('delete', $tab, $args);
 	}
 
+	/**
+	 * Retrieve connection. Useful for e.g. creating custom function.
+	 *
+	 */
+
+	public function get_connection() {
+		return $this->_connection;
+	}
 }
 
