@@ -110,22 +110,23 @@ function _header_string($code) {
  * @param int|false cache age or no cache at all
  * @param bool $echo if true and the file exists, print it and die
  * @param int $code HTTP code
+ * @param bool $disposition whether Content-Disposition header is to be sent
  */
 function _header($fname=0, $cache=0, $echo=1, $code=200, $disposition=false) {
 
 	if ($fname && (!file_exists($fname) || is_dir($fname)))
 		$code = 404;
-		
+
 	extract(_header_string($code));
 
 	if (!defined('NOW'))
 		define('NOW', time());
-	
+
 	@header("HTTP/1.0 $code $msg");
 	if ($cache) {
 		$cache = intval($cache);
 		$expire = NOW + $cache;
-		@header("Expires: ".gmdate("D, d M Y H:i:s",$expire)." GMT");
+		@header("Expires: ".gmdate("D, d M Y H:i:s", $expire)." GMT");
 		@header("Cache-Control: must-revalidate");
 	}
 	else {
@@ -143,23 +144,24 @@ function _header($fname=0, $cache=0, $echo=1, $code=200, $disposition=false) {
 	if ($code != 200)
 		# echoing error page doesn't make sense; error pages must
 		# always be generated and not cached
-		die;
-	
+		die();
+
+	@header('Content-Length: ' . filesize($fname));
+
 	$mime = _magic($fname);
-	
-	header("Content-Type: {$mime}");
+	@header("Content-Type: {$mime}");
 
 	if ($disposition) {
-		header(sprintf(
+		@header(sprintf(
 			'Content-Disposition: attachment; filename="%s"',
 			basename($fname)));
 	}
 
-	$str = file_get_contents($fname);
-	@header('Content-Length: '.strlen($str));
+	// TODO: xsendfile here; the path permission is a nightmare
+	// to make implementation possible
 
-	echo $str;
-	die;
+	readfile($fname);
+	die();
 }
 
 /**

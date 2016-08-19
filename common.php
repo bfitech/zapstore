@@ -290,13 +290,17 @@ function __static_file__($rpath, $disposition=false) {
 		_header($rpath, 3600, 1, 200, $disposition);
 	}
 
-	$hash = md5($rpath);
-	$content = file_get_contents($rpath);
-	$content = minify($type, $content);
-	if (fs_cache_read($hash, $type))
-		return;
-	fs_cache_write($hash, $content, $type);
-	die($content);
+	if (defined('HTTP_FILTER_URL') && HTTP_FILTER_URL) {
+		// minifying
+		$hash = md5($rpath);
+		$content = file_get_contents($rpath);
+		$content = minify($type, $content);
+		if (fs_cache_read($hash, $type))
+			return;
+		fs_cache_write($hash, $content, $type);
+		die($content);
+	}
+	_header($rpath, 3600, 1, 200, $disposition);
 }
 $_S['request']->static_file_custom = '__static_file__';
 
