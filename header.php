@@ -193,7 +193,9 @@ function _magic($fname) {
 	} elseif (file_exists('/usr/bin/file')) {
 		// using `file`
 		$sh = "/usr/bin/file -b --mime \"$fname\"";
-		$mime = `$sh`; 
+		$check_mime = `$sh`; 
+		if ($check_mime)
+			$mime = $check_mime;
 	}
 
 	return $mime;

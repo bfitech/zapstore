@@ -334,8 +334,9 @@ function handle($case, $args) {
  * @params string $path Basename of the view. Defaults to index.html.php.
  * @params bool $echo Will print if set to true, otherwise this return
  *     the buffer as a string.
+ * @params bool $cache Send no cache headers if false.
  */
-function view($handler, $path='index.html', $echo=true) {
+function view($handler, $path='index.html', $echo=true, $cache=false) {
 
 	$rpath = ZAPAPP . '/view/' . $handler . '/' . $path;
 	if (!file_exists($rpath))
@@ -345,11 +346,18 @@ function view($handler, $path='index.html', $echo=true) {
 	if ($echo) {
 		if (!file_exists($rpath))
 			return abort(404);
-		_header(0, 3600, 0, 200);
+		$cache_age = $cache ? 3600 : 0;
+		_header(0, $cache_age, 0, 200);
 		@header('Content-Type: text/html; charset=utf-8');
-		ob_start();
+		if (defined('HTTP_FILTER_URL') && HTTP_FILTER_URL) {
+			// Minified.
+			ob_start();
+			require($rpath);
+			die(minify('html', ob_get_clean()));
+		}
+		// Not minified.
 		require($rpath);
-		die(minify('html', ob_get_clean()));
+		die();
 	}
 
 	// Return buffer.
