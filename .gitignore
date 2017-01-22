@@ -18,3 +18,5 @@
 /script/data
 /script/node_modules
 
+
+/vendor/

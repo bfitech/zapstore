@@ -1,10 +1,9 @@
 <?php
 
-/**
- * RDBMS PDO Wrapper 
- */
 
-class db {
+namespace BFITech\ZapStore;
+
+class SQL {
 
 	/**
 	 * Error number.
@@ -43,47 +42,50 @@ class db {
 	/**
 	 * Constructor.
 	 *
-	 * @param array $c Connection associative array.
+	 * @param array $params Connection associative array.
 	 */
-	public function __construct($c) {
+	public function __construct($params) {
 
-		foreach (array('dbtype','dbhost','dbport','dbuser','dbpass','dbname') as $k) {
-			if (isset($c[$k])) {
-				if ($k == 'dbtype' && in_array($c[$k],array('postgresql')))
+		foreach ([
+			'dbtype', 'dbhost', 'dbport',
+			'dbuser', 'dbpass', 'dbname'
+		] as $k) {
+			if (isset($params[$k])) {
+				if ($k == 'dbtype' && in_array($c[$k], ['postgresql']))
 					$c[$k] = 'pgsql';
-				$this->$k = $c[$k];
+				$this->$k = $params[$k];
 			}
 		}
 		if (!$this->dbname)
 			return;
 		if ($this->dbtype == 'sqlite3') {
-			$this->_connection_string = 'sqlite:'.(string)$this->dbname;
+			$this->_connection_string = 'sqlite:' . $this->dbname;
 			return;
 		}
 		if (!$this->dbuser)
 			return;
 		if ($this->dbtype == 'mysql') {
 			$conn = 'mysql:';
-			$conn.= sprintf("dbname=%s",$this->dbname);
+			$conn .= sprintf("dbname=%s", $this->dbname);
 			if ($this->dbhost) {
-				$conn.= sprintf(';host=%s',$this->dbhost);
+				$conn .= sprintf(';host=%s', $this->dbhost);
 				if ($this->dbport)
-					$conn.= sprintf(';port=%s',$this->dbhost);
+					$conn .= sprintf(';port=%s', $this->dbhost);
 			}
 			$this->_connection_string = $conn;
 			return;
 		}
 		if ($this->dbtype == 'pgsql') {
 			$conn = 'pgsql:';
-			$conn.= sprintf("dbname=%s",$this->dbname);
+			$conn.= sprintf("dbname=%s", $this->dbname);
 			if ($this->dbhost) {
-				$conn.= sprintf(";host=%s",$this->dbhost);
+				$conn.= sprintf(";host=%s", $this->dbhost);
 				if ($this->dbport)
-					$conn.= sprintf(";port=%s",$this->dbport);
+					$conn.= sprintf(";port=%s", $this->dbport);
 			}
-			$conn.= sprintf(";user=%s",$this->dbuser);
+			$conn .= sprintf(";user=%s", $this->dbuser);
 			if ($this->dbpass)
-				$conn.= sprintf(";password=%s",$this->dbpass);
+				$conn .= sprintf(";password=%s", $this->dbpass);
 			$this->_connection_string = $conn;
 		}
 	}
@@ -95,36 +97,42 @@ class db {
 		$this->_reset_prop();
 		$this->connection_string = $this->_connection_string;
 		try {
-			if (in_array($this->dbtype,array('sqlite3','pgsql')))
+			if (in_array($this->dbtype, ['sqlite3', 'pgsql'])) {
 				$this->_connection = new PDO($this->_connection_string);
-			elseif ($this->dbtype == 'mysql') {
+			} elseif ($this->dbtype == 'mysql') {
 				$passwd = $this->dbpass ? $this->dbpass : null;
-				$this->_connection = new PDO($this->_connection_string,$this->dbuser,$passwd);
-			}
-			else {
-				$this->_format_error(1,$this->dbtype." not available.");
+				$this->_connection = new PDO(
+					$this->_connection_string, $this->dbuser, $passwd);
+			} else {
+				$this->_format_error(1, $this->dbtype . " not available.");
 				return false;
 			}
 		} catch (Exception $e) {
-			$this->_format_error(2,$this->dbtype." connection error.");
+			$this->_format_error(2, $this->dbtype . " connection error.");
 			return false;
 		}
-		if (!defined('NOW')) {
-			# timestamp is always on sql server side
-			if ($this->dbtype == 'pgsql')
-				$now = $this->query(
-					"SELECT EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now");
-			elseif ($this->dbtype == 'mysql')
-				$now = $this->query(
-					"SELECT UNIX_TIMESTAMP() AS now");
-			elseif ($this->dbtype == 'sqlite3')
-				$now = $this->query(
-					"SELECT strftime('%s',CURRENT_TIMESTAMP) AS now");
-			else
-				$now = time();
-			define('NOW',intval($now['now']));
-		}
 		return true;
+	}
+
+	/**
+	 * Convenient method to get server time.
+	 *
+	 * @return int Unix timestamp.
+	 */
+	public function sql_now() {
+		switch($this->query) {
+			case 'pgsql':
+				return $this->query(
+					"SELECT EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now");
+			case 'mysql':
+				return $this->query(
+					"SELECT UNIX_TIMESTAMP() AS now");
+			case 'sqlite':
+				return $this->query(
+					"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now");
+			default:
+				return null;
+		}
 	}
 
 	/**
@@ -134,12 +142,18 @@ class db {
 		$this->_connection = null;
 	}
 
+	/**
+	 * Reset connection properties.
+	 */
 	private function _reset_prop() {
 		$this->errno = 0;
 		$this->errmsg = '';
 		$this->_lastinsertid = null;
 	}
 
+	/**
+	 * Format error message.
+	 */
 	private function _format_error($errno, $errmsg) {
 		$this->errno = $errno;
 		$this->errmsg = $errmsg;
@@ -163,7 +177,8 @@ class db {
 		$pstmt = $qc->prepare($stmt);
 		$err = $qc->errorInfo();
 		if (isset($err[2]) && !empty($err[2]) != '')
-			return $this->_format_error(3, "Query error: " . $stmt . ': ' . $err[2]);
+			return $this->_format_error(
+				3, "Query error: " . $stmt . ': ' . $err[2]);
 
 		$pstmt->execute($arg);
 
@@ -171,8 +186,7 @@ class db {
 			$res = ($multiple)
 				? $pstmt->fetchAll(PDO::FETCH_ASSOC)
 				: $pstmt->fetch(PDO::FETCH_ASSOC);
-		}
-		else {
+		} else {
 			if ($this->dbtype == 'pgsql' && $this->_isinsert)
 				$this->_lastinsertid = $pstmt->fetch(PDO::FETCH_ASSOC);
 			$res = $qc;
@@ -180,7 +194,8 @@ class db {
 
 		$err = $qc->errorInfo();
 		if (isset($err[2]) && !empty($err[2]))
-			return $this->_format_error(4, sprintf('[%s] %s', $err[1], $err[2]));
+			return $this->_format_error(
+				4, sprintf('[%s] %s', $err[1], $err[2]));
 
 		return $res;
 	}
@@ -211,7 +226,7 @@ class db {
 			return false;
 
 		$qt = '';
-		
+
 		if ($case == 'insert') {
 			$qtk = $qtv = '';
 			foreach ($args as $k => $v) {
@@ -229,15 +244,14 @@ class db {
 			return $qt;
 		}
 		if ($case == 'update') {
-
 			$qa = '';
 			foreach ($args as $k => $v)
 				$qa.= "$k=?,";
 			$qa = rtrim($qa, ',');
 
-			$qt = "UPDATE {$tab} SET $qa";
-			
-		 	if ($where) {	
+			$qt = "UPDATE $tab SET $qa";
+
+			if ($where) {	
 				$qt.= " WHERE ";
 				$wheres = array();
 				foreach ($where as $k => $v)
@@ -289,12 +303,12 @@ class db {
 				if (isset($r[$pk]))
 					$ret = $r[$pk];
 				$this->_isinsert = false;
-			}
-			else
+			} else {
 				$ret = $this->_connection->lastInsertId();
-		}
-		else
+			}
+		} else {
 			$ret = true;
+		}
 
 		return $ret;
 	}
@@ -320,7 +334,7 @@ class db {
 	 * @param array $where Associative array of WHERE to UPDATE.
 	 * @return bool True on success.
 	 */
-	public function update($tab,$args,$where) {
+	public function update($tab, $args, $where) {
 		return $this->_exec('update', $tab, $args, $where);
 	}
 
@@ -331,15 +345,13 @@ class db {
 	 * @param array $args Associative array of WHERE to delete.
 	 * @return bool True on success.
 	 */
-	public function delete($tab,$args) {
+	public function delete($tab, $args) {
 		return $this->_exec('delete', $tab, $args);
 	}
 
 	/**
 	 * Retrieve connection. Useful for e.g. creating custom function.
-	 *
 	 */
-
 	public function get_connection() {
 		return $this->_connection;
 	}
