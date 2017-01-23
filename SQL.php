@@ -17,19 +17,14 @@ class SQL {
 	public $errno = 0;
 	public $errmsg = '';
 
-	/**
-	 * Connection string.
-	 *
-	 * Use this, e.g. for dblink connection in postgres.
-	 */
-	public $connection_string = '';
-
 	private $dbtype = null;
 	private $dbhost = false;
 	private $dbport = false;
 	private $dbuser = false;
 	private $dbpass = false;
 	private $dbname = false;
+
+	private $_verified_params = null;
 
 	private $_connection_string = '';
 	private $_connection = false;
@@ -46,6 +41,7 @@ class SQL {
 	 */
 	public function __construct($params) {
 
+		$verified_params = [];
 		foreach ([
 			'dbtype', 'dbhost', 'dbport',
 			'dbuser', 'dbpass', 'dbname'
@@ -54,12 +50,14 @@ class SQL {
 				if ($k == 'dbtype' && $params[$k] == 'postgresql')
 					$c[$k] = 'pgsql';
 				$this->$k = $params[$k];
+				$verified_params[$k] = $params[$k];
 			}
 		}
 		if (!$this->dbname)
 			return;
 		if ($this->dbtype == 'sqlite3') {
 			$this->_connection_string = 'sqlite:' . $this->dbname;
+			$this->_verified_params = $verified_params;
 			return;
 		}
 		if (!$this->dbuser)
@@ -73,6 +71,7 @@ class SQL {
 					$conn .= sprintf(';port=%s', $this->dbhost);
 			}
 			$this->_connection_string = $conn;
+			$this->_verified_params = $verified_params;
 			return;
 		}
 		if ($this->dbtype == 'pgsql') {
@@ -87,6 +86,7 @@ class SQL {
 			if ($this->dbpass)
 				$conn .= sprintf(";password=%s", $this->dbpass);
 			$this->_connection_string = $conn;
+			$this->_verified_params = $verified_params;
 		}
 	}
 
@@ -95,7 +95,6 @@ class SQL {
 	 */
 	public function open() {
 		$this->_reset_prop();
-		$this->connection_string = $this->_connection_string;
 		try {
 			if (in_array($this->dbtype, ['sqlite3', 'pgsql'])) {
 				$this->_connection = new \PDO($this->_connection_string);
@@ -105,10 +104,12 @@ class SQL {
 					$this->_connection_string, $this->dbuser, $passwd);
 			} else {
 				$this->_format_error(1, $this->dbtype . " not available.");
+				$this->_verified_params = null;
 				return false;
 			}
 		} catch (Exception $e) {
 			$this->_format_error(2, $this->dbtype . " connection error.");
+			$this->_verified_params = null;
 			return false;
 		}
 		return true;
@@ -132,6 +133,56 @@ class SQL {
 					"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now");
 			default:
 				return null;
+		}
+	}
+
+	/**
+	 * SQL statement fragment.
+	 *
+	 * @param string $part A part sensitive to the database being use, one
+	 *     of these: 'engine', 'index', 'datetime'.
+	 * @param array $param Associative array of parameters for the part,
+	 *     for 'datetime' only.
+	 */
+	public function stmt_fragment($part, $args=[]) {
+		if ($part == 'engine') {
+			if ($this->dbtype == 'mysql')
+				# we don't support MyISAM
+				return "ENGINE=INNODB";
+			return "";
+		}
+		if ($part == "index") {
+			switch ($this->dbtype) {
+				case 'pgsql':
+					return 'INTEGER SERIAL';
+				case 'mysql':
+					return 'INTEGER PRIMARY KEY AUTO_INCREMENT';
+				case 'sqlite3':
+					return 'INTEGER PRIMARY KEY AUTOINCREMENT';
+				default:
+					return null;
+			}
+		}
+		if ($part == 'datetime') {
+			$delta = 0;
+			if ($args && isset($args['delta']))
+				$delta = (int)$args['delta'];
+			$date = '';
+			switch ($this->dbtype) {
+				case 'sqlite3':
+					$date = "(datetime('now', '+%s second'))";
+					break;
+				case 'pgsql':
+					$date = "timestamp 'now' + interval '%s second'";
+					$date = explode('.', $date)[0];
+					break;
+				case 'mysql':
+					$date = "date_add(now(), interval %s second)";
+					break;
+				default:
+					return null;
+			}
+			return sprintf($date, $delta);
 		}
 	}
 
@@ -349,11 +400,34 @@ class SQL {
 		return $this->_exec('delete', $tab, $args);
 	}
 
+	/* get properties */
+
 	/**
-	 * Retrieve connection. Useful for e.g. creating custom function.
+	 * Retrieve connection.
+	 *
+	 * Useful for checking whether connection is open or other
+	 * things, e.g. creating custom functions.
 	 */
 	public function get_connection() {
 		return $this->_connection;
+	}
+
+	/**
+	 * Retrieve formatted connection string.
+	 *
+	 * Use this, e.g. for dblink connection in postgres.
+	 */
+	public function get_connection_string() {
+		if (!$this->_connection)
+			return null;
+		return $this->_connection_string;
+	}
+
+	/**
+	 * Retrive successful connection parameters.
+	 */
+	public function get_connection_params() {
+		return $this->_verified_params;
 	}
 }
 
