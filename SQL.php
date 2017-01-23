@@ -51,7 +51,7 @@ class SQL {
 			'dbuser', 'dbpass', 'dbname'
 		] as $k) {
 			if (isset($params[$k])) {
-				if ($k == 'dbtype' && in_array($c[$k], ['postgresql']))
+				if ($k == 'dbtype' && $params[$k] == 'postgresql')
 					$c[$k] = 'pgsql';
 				$this->$k = $params[$k];
 			}
@@ -98,10 +98,10 @@ class SQL {
 		$this->connection_string = $this->_connection_string;
 		try {
 			if (in_array($this->dbtype, ['sqlite3', 'pgsql'])) {
-				$this->_connection = new PDO($this->_connection_string);
+				$this->_connection = new \PDO($this->_connection_string);
 			} elseif ($this->dbtype == 'mysql') {
 				$passwd = $this->dbpass ? $this->dbpass : null;
-				$this->_connection = new PDO(
+				$this->_connection = new \PDO(
 					$this->_connection_string, $this->dbuser, $passwd);
 			} else {
 				$this->_format_error(1, $this->dbtype . " not available.");
@@ -184,11 +184,11 @@ class SQL {
 
 		if (!$raw) {
 			$res = ($multiple)
-				? $pstmt->fetchAll(PDO::FETCH_ASSOC)
-				: $pstmt->fetch(PDO::FETCH_ASSOC);
+				? $pstmt->fetchAll(\PDO::FETCH_ASSOC)
+				: $pstmt->fetch(\PDO::FETCH_ASSOC);
 		} else {
 			if ($this->dbtype == 'pgsql' && $this->_isinsert)
-				$this->_lastinsertid = $pstmt->fetch(PDO::FETCH_ASSOC);
+				$this->_lastinsertid = $pstmt->fetch(\PDO::FETCH_ASSOC);
 			$res = $qc;
 		}
 
@@ -208,7 +208,7 @@ class SQL {
 	 * @param string $stmt SQL statement.
 	 */
 	public function query_raw($stmt){
-		$this->query($stmt, [], false, true);
+		return $this->query($stmt, [], false, true);
 	}
 
 	/**
