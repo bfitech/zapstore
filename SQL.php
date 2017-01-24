@@ -13,6 +13,7 @@ class SQL {
 	 * 2 := failed connection
 	 * 3 := invalid query
 	 * 4 := argument binding error
+	 * 5 := PDO exception
 	 */
 	public $errno = 0;
 	public $errmsg = '';
@@ -112,6 +113,8 @@ class SQL {
 			$this->_verified_params = null;
 			return false;
 		}
+		$this->_connection->setAttribute(
+			\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 		return true;
 	}
 
@@ -231,7 +234,13 @@ class SQL {
 			return $this->_format_error(
 				3, "Query error: " . $stmt . ': ' . $err[2]);
 
-		$pstmt->execute($arg);
+		try {
+			$pstmt->execute($arg);
+		} catch (\PDOException $e) {
+			$err = ['8888', 127, $e->getMessage()];
+			return $this->_format_error(
+				5, sprintf('[%s] %s', $err[1], $err[2]));
+		}
 
 		if (!$raw) {
 			$res = ($multiple)
@@ -302,7 +311,7 @@ class SQL {
 
 			$qt = "UPDATE $tab SET $qa";
 
-			if ($where) {	
+			if ($where) {
 				$qt.= " WHERE ";
 				$wheres = array();
 				foreach ($where as $k => $v)
@@ -344,7 +353,7 @@ class SQL {
 
 		$this->query($stmt, $argsval, false, true);
 
-		if ($this->errno != 0)
+		if ($this->errno !== 0)
 			return false;
 
 		$ret = false;
