@@ -115,6 +115,8 @@ class SQL {
 		}
 		$this->_connection->setAttribute(
 			\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+		if ($this->dbtype == 'sqlite3')
+			$this->_connection->exec("PRAGMA foreign_keys=ON");
 		return true;
 	}
 
