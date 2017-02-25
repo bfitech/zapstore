@@ -53,6 +53,28 @@ class SQLTest extends TestCase {
 		}
 	}
 
+	public function test_connection() {
+		$args = ['dbname' => ':memory:'];
+		try {
+			$sql = new zs\SQL($args);
+		} catch(zs\SQLError $e) {
+			$this->assertEquals($e->code,
+				zs\SQLError::CONNECTION_ARGS_ERROR);
+		}
+
+		$args['dbtype'] = 'sqlite';
+		try {
+			$sql = new zs\SQL($args);
+		} catch(zs\SQLError $e) {
+			$this->assertEquals($e->code,
+				zs\SQLError::DBTYPE_ERROR);
+		}
+
+		$args['dbtype'] = 'sqlite3';
+		$sql = new zs\SQL($args);
+		$this->assertTrue(!empty($sql));
+	}
+
 	public function test_raw() {
 		$this->dbs(function($sql, $dbtype){
 

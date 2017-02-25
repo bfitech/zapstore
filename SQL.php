@@ -75,10 +75,12 @@ class SQL {
 			$verified_params[$key] = $params[$key];
 		}
 
-		if (!$this->dbname)
-			throw new SQLError(
-				SQLError::CONNECTION_ARGS_ERROR,
-				"'dbname' not supplied.");
+		foreach (['dbtype', 'dbname'] as $key) {
+			if (!$this->$key)
+				throw new SQLError(
+					SQLError::CONNECTION_ARGS_ERROR,
+					sprintf("'%s' not supplied.", $key));
+		}
 
 		if ($this->dbtype == 'sqlite3') {
 			$this->connection_string = 'sqlite:' . $this->dbname;
