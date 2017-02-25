@@ -3,42 +3,62 @@
 
 namespace BFITech\ZapStore;
 
+
+class SQLError extends \Exception {
+
+	const DBTYPE_ERROR = 0x10;
+	const CONNECTION_ARGS_ERROR = 0x20;
+	const CONNECTION_ERROR = 0x30;
+	const EXECUTION_ERROR = 0x40;
+
+	public $code = 0;
+	public $message = null;
+	private $stmt = null;
+	private $args = [];
+
+	public function __construct(
+		$code, $message, $stmt=null, $args=[]
+	) {
+		$this->code = $code;
+		$this->message = $message;
+		$this->stmt = $stmt;
+		$this->args = $args;
+		parent::__construct($message, $code, null);
+	}
+
+	public function getStmt() {
+		return $this->stmt;
+	}
+
+	public function getArgs() {
+		return $this->args;
+	}
+}
+
+
 class SQL {
 
-	/**
-	 * Error number.
-	 *
-	 * 0 := OK
-	 * 1 := database type not supported
-	 * 2 := failed connection
-	 * 3 := invalid query
-	 * 4 := argument binding error
-	 * 5 := PDO exception
-	 */
-	public $errno = 0;
-	public $errmsg = '';
-
 	private $dbtype = null;
-	private $dbhost = false;
-	private $dbport = false;
-	private $dbuser = false;
-	private $dbpass = false;
-	private $dbname = false;
+	private $dbhost = null;
+	private $dbport = null;
+	private $dbuser = null;
+	private $dbpass = null;
+	private $dbname = null;
 
-	private $_verified_params = null;
+	private $verified_params = null;
 
-	private $_connection_string = '';
-	private $_connection = false;
+	private $connection_string = '';
+	private $connection = false;
 
-	# pgsql-specific, since lastinsertid is fetched from statement object
-	# instead of connection
-	private $_isinsert = false;
-	private $_lastinsertid = null;
+	# postgres-specific, since lastinsertid is fetched from statement
+	# object instead of connection
+	private $is_insert = false;
+	private $lastinsertid = null;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param array $params Connection associative array.
+	 * @param array $params Connection dict.
 	 */
 	public function __construct($params) {
 
@@ -46,96 +66,108 @@ class SQL {
 		foreach ([
 			'dbtype', 'dbhost', 'dbport',
 			'dbuser', 'dbpass', 'dbname'
-		] as $k) {
-			if (isset($params[$k])) {
-				if ($k == 'dbtype' && $params[$k] == 'postgresql')
-					$c[$k] = 'pgsql';
-				$this->$k = $params[$k];
-				$verified_params[$k] = $params[$k];
-			}
+		] as $key) {
+			if (!isset($params[$key]))
+				continue;
+			if ($key == 'dbtype' && $params[$key] == 'postgresql')
+				$params[$key] = 'pgsql';
+			$this->$key = $params[$key];
+			$verified_params[$key] = $params[$key];
 		}
+
 		if (!$this->dbname)
-			return;
+			throw new SQLError(
+				SQLError::CONNECTION_ARGS_ERROR,
+				"'dbname' not supplied.");
+
 		if ($this->dbtype == 'sqlite3') {
-			$this->_connection_string = 'sqlite:' . $this->dbname;
-			$this->_verified_params = $verified_params;
-			return;
-		}
-		if (!$this->dbuser)
-			return;
-		if ($this->dbtype == 'mysql') {
-			$conn = 'mysql:';
-			$conn .= sprintf("dbname=%s", $this->dbname);
+			$this->connection_string = 'sqlite:' . $this->dbname;
+			$this->verified_params = $verified_params;
+		} elseif ($this->dbtype == 'mysql') {
+			if (!$this->dbuser)
+				throw new SQLError(
+					SQLError::CONNECTION_ARGS_ERROR,
+					"'dbuser' not supplied.");
+			$cstr = 'mysql:';
+			$cstr .= sprintf("dbname=%s", $this->dbname);
 			if ($this->dbhost) {
-				$conn .= sprintf(';host=%s', $this->dbhost);
+				$cstr .= sprintf(';host=%s', $this->dbhost);
 				if ($this->dbport)
-					$conn .= sprintf(';port=%s', $this->dbhost);
+					$cstr .= sprintf(';port=%s', $this->dbhost);
 			}
-			$this->_connection_string = $conn;
-			$this->_verified_params = $verified_params;
-			return;
-		}
-		if ($this->dbtype == 'pgsql') {
-			$conn = 'pgsql:';
-			$conn.= sprintf("dbname=%s", $this->dbname);
+			$this->connection_string = $cstr;
+			$this->verified_params = $verified_params;
+		} elseif ($this->dbtype == 'pgsql') {
+			if (!$this->dbuser)
+				throw new SQLError(
+					SQLError::CONNECTION_ARGS_ERROR,
+					"'dbuser' not supplied.");
+			$cstr = 'pgsql:';
+			$cstr.= sprintf("dbname=%s", $this->dbname);
 			if ($this->dbhost) {
-				$conn.= sprintf(";host=%s", $this->dbhost);
+				$cstr .= sprintf(";host=%s", $this->dbhost);
 				if ($this->dbport)
-					$conn.= sprintf(";port=%s", $this->dbport);
+					$cstr .= sprintf(";port=%s", $this->dbport);
 			}
-			$conn .= sprintf(";user=%s", $this->dbuser);
+			$cstr .= sprintf(";user=%s", $this->dbuser);
 			if ($this->dbpass)
-				$conn .= sprintf(";password=%s", $this->dbpass);
-			$this->_connection_string = $conn;
-			$this->_verified_params = $verified_params;
+				$cstr .= sprintf(";password=%s", $this->dbpass);
+			$this->connection_string = $cstr;
+			$this->verified_params = $verified_params;
+		} else {
+			throw new SQLError(SQLError::DBTYPE_ERROR,
+				$this->dbtype . " not supported.");
 		}
+
+		try {
+			if (in_array($this->dbtype, ['sqlite3', 'pgsql'])) {
+				$this->connection = new \PDO($this->connection_string);
+			} elseif ($this->dbtype == 'mysql') {
+				$this->connection = new \PDO(
+					$this->connection_string, $this->dbuser, $this->dbpass);
+			} else {
+				throw new SQLError(SQLError::DBTYPE_ERROR,
+					$this->dbtype . " not supported.");
+			}
+		} catch (Exception $e) {
+			throw new SQLError(SQLError::CONNECTION_ERROR,
+				$this->dbtype . " connection error.");
+		}
+
+		$this->connection->setAttribute(
+			\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+
+		# set pragma for SQLite3
+		if ($this->dbtype == 'sqlite3')
+			$this->connection->exec("PRAGMA foreign_keys=ON");
 	}
 
 	/**
 	 * Open connection.
+	 *
+	 * @deprecated
 	 */
 	public function open() {
-		$this->_reset_prop();
-		try {
-			if (in_array($this->dbtype, ['sqlite3', 'pgsql'])) {
-				$this->_connection = new \PDO($this->_connection_string);
-			} elseif ($this->dbtype == 'mysql') {
-				$passwd = $this->dbpass ? $this->dbpass : null;
-				$this->_connection = new \PDO(
-					$this->_connection_string, $this->dbuser, $passwd);
-			} else {
-				$this->_format_error(1, $this->dbtype . " not available.");
-				$this->_verified_params = null;
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->_format_error(2, $this->dbtype . " connection error.");
-			$this->_verified_params = null;
-			return false;
-		}
-		$this->_connection->setAttribute(
-			\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-		if ($this->dbtype == 'sqlite3')
-			$this->_connection->exec("PRAGMA foreign_keys=ON");
-		return true;
 	}
 
 	/**
-	 * Convenient method to get server time.
+	 * Convenience method to get Unix timestamp from database server.
 	 *
 	 * @return int Unix timestamp.
 	 */
-	public function sql_now() {
-		switch($this->query) {
+	public function unix_epoch() {
+		switch($this->dbtype) {
 			case 'pgsql':
 				return $this->query(
-					"SELECT EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now");
+					"SELECT EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now"
+				)['now'];
 			case 'mysql':
 				return $this->query(
-					"SELECT UNIX_TIMESTAMP() AS now");
-			case 'sqlite':
+					"SELECT UNIX_TIMESTAMP() AS now")['now'];
+			case 'sqlite3':
 				return $this->query(
-					"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now");
+					"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now"
+				)['now'];
 			default:
 				return null;
 		}
@@ -144,22 +176,22 @@ class SQL {
 	/**
 	 * SQL statement fragment.
 	 *
-	 * @param string $part A part sensitive to the database being use, one
-	 *     of these: 'engine', 'index', 'datetime'.
-	 * @param array $param Associative array of parameters for the part,
-	 *     for 'datetime' only.
+	 * @param string $part A part sensitive to the database being used,
+	 *     one of these: 'engine', 'index', 'datetime'.
+	 * @param array $args Dict of parameters for $part, for 'datetime'
+	 *     only.
 	 */
 	public function stmt_fragment($part, $args=[]) {
 		if ($part == 'engine') {
 			if ($this->dbtype == 'mysql')
 				# we don't support MyISAM
-				return "ENGINE=INNODB";
+				return "ENGINE=InnoDB";
 			return "";
 		}
 		if ($part == "index") {
 			switch ($this->dbtype) {
 				case 'pgsql':
-					return 'INTEGER SERIAL';
+					return 'SERIAL PRIMARY KEY';
 				case 'mysql':
 					return 'INTEGER PRIMARY KEY AUTO_INCREMENT';
 				case 'sqlite3':
@@ -178,10 +210,14 @@ class SQL {
 					$date = "(datetime('now', '+%s second'))";
 					break;
 				case 'pgsql':
-					$date = "timestamp 'now' + interval '%s second'";
-					$date = explode('.', $date)[0];
+					$date = "(" .
+					          "now() at time zone 'utc' + " .
+					          "interval '%s second'" .
+					        ")::timestamp(0)";
 					break;
 				case 'mysql':
+					# mysql cannot accept function default; do
+					# not use this on DDL
 					$date = "date_add(now(), interval %s second)";
 					break;
 				default:
@@ -195,53 +231,65 @@ class SQL {
 	 * Close connection.
 	 */
 	public function close() {
-		$this->_connection = null;
+		$this->connection = null;
 	}
 
 	/**
 	 * Reset connection properties.
 	 */
-	private function _reset_prop() {
-		$this->errno = 0;
-		$this->errmsg = '';
-		$this->_lastinsertid = null;
+	private function reset_prop() {
+		$this->lastinsertid = null;
 	}
 
 	/**
-	 * Format error message.
-	 */
-	private function _format_error($errno, $errmsg) {
-		$this->errno = $errno;
-		$this->errmsg = $errmsg;
-		return [];
-	}
-
-	/**
-	 * Execute query and return result.
+	 * Execute query.
+	 *
+	 * To disable autocommit:
+	 *     $this->connection->beginTransaction();
+	 *     $this->query(...);
+	 *     $this->connection->commit();
+	 * and when exception is thrown:
+	 *     $this->connection->rollBack();
+	 * Use $this->get_connection() to access private $this->connection.
 	 *
 	 * @param string $stmt SQL statement.
-	 * @param array $arg Arguments in numeric array.
+	 * @param array $args Arguments in numeric array.
 	 * @param bool $multiple Whether returned result contains all rows.
 	 * @param bool $raw Return connection if true, return rows otherwise.
-	 * @return mixed Rows or connection depending on $raw switch, 
+	 * @return mixed Rows or connection depending on $raw switch.
+	 *
+	 * @note Since SQLite3 does not enforce type safety, make sure arguments
+	 *     are cast properly before usage.
+	 * @see https://archive.fo/vKBEz#selection-449.0-454.0
 	 */
-	public function query($stmt, $arg=[], $multiple=false, $raw=false) {
-		$this->_reset_prop();
+	public function query(
+		$stmt, $args=[], $multiple=false,
+		$raw=false, $autocommit=true
+	) {
+		$this->reset_prop();
+		if (!$this->connection)
+			throw new SQLError(SQLError::CONNECTION_ERROR,
+				$this->dbtype . " connection error.");
 
-		$qc = $this->_connection;
-
-		$pstmt = $qc->prepare($stmt);
-		$err = $qc->errorInfo();
-		if (isset($err[2]) && !empty($err[2]) != '')
-			return $this->_format_error(
-				3, "Query error: " . $stmt . ': ' . $err[2]);
+		$conn = $this->connection;
+		try {
+			$pstmt = $conn->prepare($stmt);
+		} catch (\PDOException $e) {
+			throw new SQLError(
+				SQLError::EXECUTION_ERROR,
+				sprintf("Execution error: %s.", $e->getMessage()),
+				$stmt, $args
+			);
+		}
 
 		try {
-			$pstmt->execute($arg);
+			$pstmt->execute(array_values($args));
 		} catch (\PDOException $e) {
-			$err = ['8888', 127, $e->getMessage()];
-			return $this->_format_error(
-				5, sprintf('[%s] %s', $err[1], $err[2]));
+			throw new SQLError(
+				SQLError::EXECUTION_ERROR,
+				sprintf("Execution error: %s.", $e->getMessage()),
+				$stmt, $args
+			);
 		}
 
 		if (!$raw) {
@@ -249,23 +297,16 @@ class SQL {
 				? $pstmt->fetchAll(\PDO::FETCH_ASSOC)
 				: $pstmt->fetch(\PDO::FETCH_ASSOC);
 		} else {
-			if ($this->dbtype == 'pgsql' && $this->_isinsert)
-				$this->_lastinsertid = $pstmt->fetch(\PDO::FETCH_ASSOC);
-			$res = $qc;
+			if ($this->dbtype == 'pgsql' && $this->is_insert)
+				$this->lastinsertid = $pstmt->fetch(\PDO::FETCH_ASSOC);
+			$res = $conn;
 		}
-
-		$err = $qc->errorInfo();
-		if (isset($err[2]) && !empty($err[2]))
-			return $this->_format_error(
-				4, sprintf('[%s] %s', $err[1], $err[2]));
 
 		return $res;
 	}
 
 	/**
 	 * Raw query execution.
-	 *
-	 * Use this for, e.g. DDL statements.
 	 *
 	 * @param string $stmt SQL statement.
 	 */
@@ -274,141 +315,110 @@ class SQL {
 	}
 
 	/**
-	 * Prepare statement for INSERT, UPDATE, and DELETE.
-	 *
-	 * @param string $case Whether it's INSERT, UPDATE or DELETE.
-	 * @param string $tab Table name.
-	 * @param array $args Arguments in associative array.
-	 * @param array $where WHERE arguments in associative array, for UPDATE only.
-	 * @param string $pk Primary key the last insert id should be look on, postgres only.
-	 * @return bool|string False on failure, SQL statement otherwise.
-	 */
-	private function _prepare($case='update', $tab, $args=[], $where=[], $pk='') {
-		if (!$args)
-			return false;
-
-		$qt = '';
-
-		if ($case == 'insert') {
-			$qtk = $qtv = '';
-			foreach ($args as $k => $v) {
-				$qtk.= "$k,";
-				$qtv.= "?,";
-			}
-			$qtk = rtrim($qtk, ',');
-			$qtv = rtrim($qtv, ',');
-			$qt = "INSERT INTO {$tab} ($qtk) VALUES ($qtv)";
-			# postgres only
-			if ($this->dbtype == 'pgsql') {
-				$qt.= " RETURNING ";
-				$qt.= $pk != '' ? $pk : '*';
-			}
-			return $qt;
-		}
-		if ($case == 'update') {
-			$qa = '';
-			foreach ($args as $k => $v)
-				$qa.= "$k=?,";
-			$qa = rtrim($qa, ',');
-
-			$qt = "UPDATE $tab SET $qa";
-
-			if ($where) {
-				$qt.= " WHERE ";
-				$wheres = array();
-				foreach ($where as $k => $v)
-					$wheres[] = "$k=?";
-				$qt.= implode(" AND ",$wheres);
-			}
-
-			return $qt;
-		}
-		if ($case == 'delete') {
-			$qt.= "DELETE FROM {$tab} WHERE ";
-			$wheres = array();
-			foreach ($args as $k => $v)
-				$wheres[] = "$k=?";
-			$qt.= implode(" AND ",$wheres);
-			return $qt;
-		}
-		return false;
-	}
-
-	/**
-	 * Generic function for INSERT, UPDATE and DELETE.
-	 */
-	private function _exec($case='update', $tab, $args=[], $where=[], $pk='') {
-		$this->_reset_prop();
-
-		if ($this->dbtype == 'pgsql' && $case == 'insert')
-			$this->_isinsert = true;
-
-		$stmt = $this->_prepare($case, $tab, $args, $where, $pk);
-		if (!$stmt)
-			return $this->_format_error(3, "Query error.");
-
-		$argsval = array();
-		foreach ($args as $av)
-			$argsval[] = $av;
-		foreach ($where as $aw)
-			$argsval[] = $aw;
-
-		$this->query($stmt, $argsval, false, true);
-
-		if ($this->errno !== 0)
-			return false;
-
-		$ret = false;
-		if ($case == 'insert') {
-			if ($this->dbtype == 'pgsql' && $pk != '') {
-				$r = $this->_lastinsertid;
-				if (isset($r[$pk]))
-					$ret = $r[$pk];
-				$this->_isinsert = false;
-			} else {
-				$ret = $this->_connection->lastInsertId();
-			}
-		} else {
-			$ret = true;
-		}
-
-		return $ret;
-	}
-
-	/**
 	 * Insert statement.
 	 *
-	 * @param string $tab Table name.
+	 * @param string $table Table name.
 	 * @param array $args Associative array of what to INSERT.
-	 * @param string $pk Primary key from which last insert ID should be
-	 *   returned, postgres only.
-	 * @return int|bool Last insert ID on success, false on failure.
+	 * @param string $pk Primary key from which last insert ID should
+	 *     be retrieved, postgres only.
+	 * @return int|array Last insert ID or IDs on success. Exception
+	 *     thrown on error.
 	 */
-	public function insert($tab, $args, $pk='') {
-		return $this->_exec('insert', $tab, $args, [], $pk);
+	public function insert($table, $args=[], $pk=null) {
+
+		$keys = $vals = [];
+		foreach ($args as $key => $val) {
+			$keys[] = $key;
+			$vals[] = "?";
+		}
+
+		$columns = implode(',', $keys);
+		$placeholders = implode(',', $vals);
+
+		$stmt = "INSERT INTO $table ($columns) VALUES ($placeholders)";
+		if ($this->dbtype == 'pgsql') {
+			# postgres-specific
+			$stmt .= " RETURNING ";
+			$stmt .= $pk ? $pk : '*';
+		}
+
+		$this->is_insert = true;
+		$this->query($stmt, $args, false, true);
+
+		$ret = null;
+		if ($this->dbtype == 'pgsql') {
+			# postgres-specific
+			$last = $this->lastinsertid;
+			if (!$pk) {
+				$this->is_insert = false;
+				return $ret;
+			}
+			if (!isset($last[$pk]))
+				# throw exception for invalid primary key, even
+				# though insert has been done
+				throw new SQLError(SQLError::EXECUTION_ERROR,
+					sprintf(
+						"Execution error: '%s' primary key not found.",
+						$pk),
+					$stmt, $args
+				);
+			$ret = $last[$pk];
+		} else {
+			$ret = $this->connection->lastInsertId();
+		}
+
+		$this->is_insert = false;
+		return $ret;
 	}
 
 	/**
 	 * Update statement.
 	 *
 	 * @param string $tab Table name.
-	 * @param array $args Associative array of what to UPDATE.
-	 * @param array $where Associative array of WHERE to UPDATE.
-	 * @return bool True on success.
+	 * @param array $args Dict of what to UPDATE.
+	 * @param array $where Dict of WHERE to UPDATE.
 	 */
-	public function update($tab, $args, $where) {
-		return $this->_exec('update', $tab, $args, $where);
+	public function update($table, $args, $where=[]) {
+		$pair_args = $params = [];
+		foreach ($args as $key => $val) {
+			$pair_args[] = "{$key}=?";
+			$params[] = $val;
+		}
+
+		$stmt = sprintf("UPDATE $table SET %s",
+			implode(",", $pair_args));
+
+		if ($where) {
+			$pair_wheres = [];
+			foreach ($where as $key => $val) {
+				$pair_wheres[] = "${key}=?";
+				$params[] = $val;
+			}
+			$stmt .= " WHERE ";
+			$stmt .= implode(' AND ', $pair_wheres);
+		}
+
+		$this->query($stmt, $params, false, true);
 	}
 
 	/**
 	 * Delete statement.
 	 *
-	 * @param string $tag Table name.
-	 * @param array $args Associative array of WHERE to delete.
-	 * @return bool True on success.
+	 * @param string $table Table name.
+	 * @param array $where Dict of WHERE to delete.
 	 */
-	public function delete($tab, $args) {
-		return $this->_exec('delete', $tab, $args);
+	public function delete($table, $where=[]) {
+		$stmt = "DELETE FROM $table";
+		if ($where) {
+			$pair_wheres = [];
+			$params = [];
+			foreach ($where as $key => $val) {
+				$pair_wheres[] = "${key}=?";
+				$params[] = $val;
+			}
+			$stmt .= " WHERE " . implode(" AND ", $pair_wheres);
+		}
+		$this->query($stmt, $params, false, true);
 	}
 
 	/* get properties */
@@ -416,11 +426,11 @@ class SQL {
 	/**
 	 * Retrieve connection.
 	 *
-	 * Useful for checking whether connection is open or other
+	 * Useful for checking whether connection is open and other
 	 * things, e.g. creating custom functions.
 	 */
 	public function get_connection() {
-		return $this->_connection;
+		return $this->connection;
 	}
 
 	/**
@@ -429,16 +439,16 @@ class SQL {
 	 * Use this, e.g. for dblink connection in postgres.
 	 */
 	public function get_connection_string() {
-		if (!$this->_connection)
+		if (!$this->connection)
 			return null;
-		return $this->_connection_string;
+		return $this->connection_string;
 	}
 
 	/**
 	 * Retrive successful connection parameters.
 	 */
 	public function get_connection_params() {
-		return $this->_verified_params;
+		return $this->verified_params;
 	}
 }
 
