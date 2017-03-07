@@ -4,18 +4,31 @@
 namespace BFITech\ZapStore;
 
 
+/**
+ * SQL exception class.
+ */
 class SQLError extends \Exception {
 
+	/** Database not supported. */
 	const DBTYPE_ERROR = 0x10;
+	/** Connection arguments invalid. */
 	const CONNECTION_ARGS_ERROR = 0x20;
+	/** Connection failed. */
 	const CONNECTION_ERROR = 0x30;
+	/** SQL execution failed. */
 	const EXECUTION_ERROR = 0x40;
 
+	/** Default errno. */
 	public $code = 0;
+	/** Default errmsg. */
 	public $message = null;
+
 	private $stmt = null;
 	private $args = [];
 
+	/**
+	 * Constructor.
+	 */
 	public function __construct(
 		$code, $message, $stmt=null, $args=[]
 	) {
@@ -26,16 +39,25 @@ class SQLError extends \Exception {
 		parent::__construct($message, $code, null);
 	}
 
+	/**
+	 * Get SQL statement from exception.
+	 */
 	public function getStmt() {
 		return $this->stmt;
 	}
 
+	/**
+	 * Get SQL parameters from exception.
+	 */
 	public function getArgs() {
 		return $this->args;
 	}
 }
 
 
+/**
+ * SQL class.
+ */
 class SQL {
 
 	private $dbtype = null;
@@ -147,6 +169,10 @@ class SQL {
 	/**
 	 * Open connection.
 	 *
+	 * Opening connection now is automatically done by constructor.
+	 * When connection fails, throw an exception instead of modify
+	 * certain property.
+	 *
 	 * @deprecated
 	 */
 	public function open() {
@@ -247,19 +273,23 @@ class SQL {
 	 * Execute query.
 	 *
 	 * To disable autocommit:
+	 * @code
 	 *     $this->connection->beginTransaction();
 	 *     $this->query(...);
 	 *     $this->connection->commit();
+	 * @endcode
 	 * and when exception is thrown:
+	 * @code
 	 *     $this->connection->rollBack();
+	 * @endcode
 	 * Use $this->get_connection() to access private $this->connection.
 	 *
 	 * @param string $stmt SQL statement.
 	 * @param array $args Arguments in numeric array.
 	 * @param bool $multiple Whether returned result contains all rows.
 	 * @param bool $raw Return connection if true, return rows otherwise.
+	 * @param bool $autocommit If true, execution is always on autocommit.
 	 * @return mixed Rows or connection depending on $raw switch.
-	 *
 	 * @note Since SQLite3 does not enforce type safety, make sure arguments
 	 *     are cast properly before usage.
 	 * @see https://archive.fo/vKBEz#selection-449.0-454.0
@@ -322,7 +352,8 @@ class SQL {
 	 * @param string $table Table name.
 	 * @param array $args Associative array of what to INSERT.
 	 * @param string $pk Primary key from which last insert ID should
-	 *     be retrieved, postgres only.
+	 *     be retrieved. This won't take any effect on databases other
+	 *     than postgres.
 	 * @return int|array Last insert ID or IDs on success. Exception
 	 *     thrown on error.
 	 */
@@ -376,7 +407,7 @@ class SQL {
 	/**
 	 * Update statement.
 	 *
-	 * @param string $tab Table name.
+	 * @param string $table Table name.
 	 * @param array $args Dict of what to UPDATE.
 	 * @param array $where Dict of WHERE to UPDATE.
 	 */
