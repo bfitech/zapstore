@@ -14,7 +14,7 @@
   },
   "autoload": {
     "psr-4": {
-      "BFITech\\ZapStore\\": ""
+      "BFITech\\ZapStore\\": "src"
     }
   }
 }
