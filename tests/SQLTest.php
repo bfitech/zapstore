@@ -2,6 +2,7 @@
 
 
 use PHPUnit\Framework\TestCase;
+use BFITech\ZapCore\Logger as Logger;
 use BFITech\ZapStore as zs;
 
 
@@ -30,9 +31,15 @@ class SQLTest extends TestCase {
 
 	public static $sql = [];
 
+	public static $logger = null;
+
 	public static function setUpBeforeClass() {
+		$logfile = '/tmp/zs.log';
+		if (file_exists($logfile))
+			@unlink($logfile);
+		self::$logger = new Logger(Logger::DEBUG, $logfile);
 		foreach (self::$args as $key => $val) {
-			self::$sql[$key] = new zs\SQL($val);
+			self::$sql[$key] = new zs\SQL($val, self::$logger);
 		}
 	}
 
@@ -56,7 +63,7 @@ class SQLTest extends TestCase {
 	public function test_connection() {
 		$args = ['dbname' => ':memory:'];
 		try {
-			$sql = new zs\SQL($args);
+			$sql = new zs\SQL($args, self::$logger);
 		} catch(zs\SQLError $e) {
 			$this->assertEquals($e->code,
 				zs\SQLError::CONNECTION_ARGS_ERROR);
@@ -64,14 +71,14 @@ class SQLTest extends TestCase {
 
 		$args['dbtype'] = 'sqlite';
 		try {
-			$sql = new zs\SQL($args);
+			$sql = new zs\SQL($args, self::$logger);
 		} catch(zs\SQLError $e) {
 			$this->assertEquals($e->code,
 				zs\SQLError::DBTYPE_ERROR);
 		}
 
 		$args['dbtype'] = 'sqlite3';
-		$sql = new zs\SQL($args);
+		$sql = new zs\SQL($args, self::$logger);
 		$this->assertTrue(!empty($sql));
 	}
 
@@ -137,6 +144,16 @@ class SQLTest extends TestCase {
 					'value' => $dat[1],
 				], 'id');
 				$this->assertEquals($nid, ++$id);
+			}
+
+			if ($dbtype == 'pgsql') {
+				# postgres needs correct RETURNING key
+				$val = $sql->insert('test', [
+					'name' => 'eggplant',
+					'value' => 8,
+				], 'value');
+				$this->assertEquals($val, 8);
+				$sql->delete('test', ['name' => 'eggplant']);
 			}
 
 			if ($dbtype == 'sqlite3') {

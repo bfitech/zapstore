@@ -4,12 +4,50 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "5242cccca3299aa0d86dd57b5db7aef3",
-    "packages": [],
+    "content-hash": "238487f7b53ac9539227e3eb6f2fa225",
+    "packages": [
+        {
+            "name": "bfitech/zapcore",
+            "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "git@bfinews.com:bfin/zapcore.git",
+                "reference": "d5ddabd7a84e72568c5a85c3291d1e438ded81d2"
+            },
+            "require": {
+                "ext-curl": "*",
+                "php": ">=5.4.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "BFITech\\ZapCore\\": "src"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "BFITech\\ZapCoreDev\\": "src"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Rendra Suroso",
+                    "email": "rs@cogsci.bandungfe.net"
+                }
+            ],
+            "description": "A very simple router and other utils.",
+            "time": "2017-03-09 13:52:05"
+        }
+    ],
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "bfitech/zapcore": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

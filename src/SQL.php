@@ -3,6 +3,7 @@
 
 namespace BFITech\ZapStore;
 
+use BFITech\ZapCore\Logger as Logger;
 
 /**
  * SQL exception class.
@@ -77,12 +78,19 @@ class SQL {
 	private $is_insert = false;
 	private $lastinsertid = null;
 
+	/** Logging service. */
+	public static $logger = null;
+
 	/**
 	 * Constructor.
 	 *
 	 * @param array $params Connection dict.
+	 * @param object $logger Logging service.
 	 */
-	public function __construct($params) {
+	public function __construct($params, $logger=null) {
+
+		self::$logger = $logger ? $logger : new Logger();
+		self::$logger->debug("SQL: object instantiated.");
 
 		$verified_params = [];
 		foreach ([
@@ -98,20 +106,26 @@ class SQL {
 		}
 
 		foreach (['dbtype', 'dbname'] as $key) {
-			if (!$this->$key)
+			if (!$this->$key) {
+				self::$logger->error(sprintf(
+					"SQL: param not supplied: '%s'.", $key));
 				throw new SQLError(
 					SQLError::CONNECTION_ARGS_ERROR,
 					sprintf("'%s' not supplied.", $key));
+			}
 		}
 
 		if ($this->dbtype == 'sqlite3') {
 			$this->connection_string = 'sqlite:' . $this->dbname;
 			$this->verified_params = $verified_params;
 		} elseif ($this->dbtype == 'mysql') {
-			if (!$this->dbuser)
+			if (!$this->dbuser) {
+				self::$logger->error(
+					"SQL: param not supplied: 'dbuser'.");
 				throw new SQLError(
 					SQLError::CONNECTION_ARGS_ERROR,
 					"'dbuser' not supplied.");
+			}
 			$cstr = 'mysql:';
 			$cstr .= sprintf("dbname=%s", $this->dbname);
 			if ($this->dbhost) {
@@ -122,10 +136,13 @@ class SQL {
 			$this->connection_string = $cstr;
 			$this->verified_params = $verified_params;
 		} elseif ($this->dbtype == 'pgsql') {
-			if (!$this->dbuser)
+			if (!$this->dbuser) {
+				self::$logger->error(
+					"SQL: param not supplied: 'dbuser'.");
 				throw new SQLError(
 					SQLError::CONNECTION_ARGS_ERROR,
 					"'dbuser' not supplied.");
+			}
 			$cstr = 'pgsql:';
 			$cstr.= sprintf("dbname=%s", $this->dbname);
 			if ($this->dbhost) {
@@ -139,6 +156,9 @@ class SQL {
 			$this->connection_string = $cstr;
 			$this->verified_params = $verified_params;
 		} else {
+			self::$logger->error(sprintf(
+				"SQL: database not supported: '%s'.",
+				$this->dbtype));
 			throw new SQLError(SQLError::DBTYPE_ERROR,
 				$this->dbtype . " not supported.");
 		}
@@ -150,10 +170,19 @@ class SQL {
 				$this->connection = new \PDO(
 					$this->connection_string, $this->dbuser, $this->dbpass);
 			} else {
+				self::$logger->error(sprintf(
+					"SQL: database not supported: '%s'.",
+					$this->dbtype));
 				throw new SQLError(SQLError::DBTYPE_ERROR,
 					$this->dbtype . " not supported.");
 			}
+			self::$logger->debug(sprintf(
+				"SQL: connection opened: '%s'.",
+				json_encode($this->verified_params)));
 		} catch (Exception $e) {
+			self::$logger->error(sprintf(
+				"SQL: connection failed: '%s'.",
+				json_encode($this->verified_params)));
 			throw new SQLError(SQLError::CONNECTION_ERROR,
 				$this->dbtype . " connection error.");
 		}
@@ -212,7 +241,7 @@ class SQL {
 	public function stmt_fragment($part, $args=[]) {
 		if ($part == 'engine') {
 			if ($this->dbtype == 'mysql')
-				# we don't support MyISAM
+				# we only intent to support FOREIGN KEY-capable engines
 				return "ENGINE=InnoDB";
 			return "";
 		}
@@ -270,6 +299,21 @@ class SQL {
 	}
 
 	/**
+	 * Merge into single line.
+	 */
+	private function one_line($lines) {
+		$lines = preg_replace('![\n\r\t]+!m', ' ', $lines);
+		return trim(preg_replace('! +!', ' ', $lines));
+	}
+
+	/**
+	 * Get first in lines.
+	 */
+	private function first_line($lines) {
+		return $this->one_line(explode("\n", $lines)[0]);
+	}
+
+	/**
 	 * Execute query.
 	 *
 	 * To disable autocommit:
@@ -294,19 +338,27 @@ class SQL {
 	 *     are cast properly before usage.
 	 * @see https://archive.fo/vKBEz#selection-449.0-454.0
 	 */
-	public function query(
+	final public function query(
 		$stmt, $args=[], $multiple=false,
 		$raw=false, $autocommit=true
 	) {
 		$this->reset_prop();
-		if (!$this->connection)
+		if (!$this->connection) {
+			self::$logger->error(sprintf(
+				"SQL: connection failed: '%s'.",
+				json_encode($this->verified_params)));
 			throw new SQLError(SQLError::CONNECTION_ERROR,
 				$this->dbtype . " connection error.");
+		}
 
 		$conn = $this->connection;
 		try {
 			$pstmt = $conn->prepare($stmt);
 		} catch (\PDOException $e) {
+			self::$logger->error(sprintf(
+				"SQL: execution failed: %s <- '%s': %s.",
+				$stmt, json_encode($args),
+				$this->first_line($e->getMessage())));
 			throw new SQLError(
 				SQLError::EXECUTION_ERROR,
 				sprintf("Execution error: %s.", $e->getMessage()),
@@ -317,6 +369,10 @@ class SQL {
 		try {
 			$pstmt->execute(array_values($args));
 		} catch (\PDOException $e) {
+			self::$logger->error(sprintf(
+				"SQL: execution failed: %s <- '%s': %s.",
+				$stmt, json_encode($args),
+				$this->first_line($e->getMessage())));
 			throw new SQLError(
 				SQLError::EXECUTION_ERROR,
 				sprintf("Execution error: %s.", $e->getMessage()),
@@ -328,6 +384,9 @@ class SQL {
 			$res = ($multiple)
 				? $pstmt->fetchAll(\PDO::FETCH_ASSOC)
 				: $pstmt->fetch(\PDO::FETCH_ASSOC);
+			self::$logger->info(sprintf(
+				"SQL: query ok: %s <- '%s'.",
+				$stmt, json_encode($args)));
 		} else {
 			if ($this->dbtype == 'pgsql' && $this->is_insert)
 				$this->lastinsertid = $pstmt->fetch(\PDO::FETCH_ASSOC);
@@ -342,7 +401,10 @@ class SQL {
 	 *
 	 * @param string $stmt SQL statement.
 	 */
-	public function query_raw($stmt){
+	final public function query_raw($stmt){
+		self::$logger->info(sprintf(
+			"SQL: query raw ok: %s.",
+			$this->one_line($stmt)));
 		return $this->query($stmt, [], false, true);
 	}
 
@@ -357,7 +419,7 @@ class SQL {
 	 * @return int|array Last insert ID or IDs on success. Exception
 	 *     thrown on error.
 	 */
-	public function insert($table, $args=[], $pk=null) {
+	final public function insert($table, $args=[], $pk=null) {
 
 		$keys = $vals = [];
 		foreach ($args as $key => $val) {
@@ -370,7 +432,9 @@ class SQL {
 
 		$stmt = "INSERT INTO $table ($columns) VALUES ($placeholders)";
 		if ($this->dbtype == 'pgsql') {
-			# postgres-specific
+			# postgres-specific; invalid pk will throw exception
+			# @note This can return any column, not necessarily those
+			#     with PRIMARY KEY attribute.
 			$stmt .= " RETURNING ";
 			$stmt .= $pk ? $pk : '*';
 		}
@@ -386,19 +450,21 @@ class SQL {
 				$this->is_insert = false;
 				return $ret;
 			}
-			if (!isset($last[$pk]))
-				# throw exception for invalid primary key, even
-				# though insert has been done
-				throw new SQLError(SQLError::EXECUTION_ERROR,
-					sprintf(
-						"Execution error: '%s' primary key not found.",
-						$pk),
-					$stmt, $args
-				);
+			if (!isset($last[$pk])) {
+				# should never happen, but just to be sure
+				self::$logger->warning(sprintf(
+					"SQL: primary key not found: %s <- '%s'.",
+					$pk, $stmt));
+				return null;
+			}
 			$ret = $last[$pk];
 		} else {
 			$ret = $this->connection->lastInsertId();
 		}
+
+		self::$logger->info(sprintf(
+			"SQL: insert ok: %s <- '%s'.",
+			$stmt, json_encode($args)));
 
 		$this->is_insert = false;
 		return $ret;
@@ -411,7 +477,7 @@ class SQL {
 	 * @param array $args Dict of what to UPDATE.
 	 * @param array $where Dict of WHERE to UPDATE.
 	 */
-	public function update($table, $args, $where=[]) {
+	final public function update($table, $args, $where=[]) {
 		$pair_args = $params = [];
 		foreach ($args as $key => $val) {
 			$pair_args[] = "{$key}=?";
@@ -431,6 +497,10 @@ class SQL {
 			$stmt .= implode(' AND ', $pair_wheres);
 		}
 
+		self::$logger->info(sprintf(
+			"SQL: update ok: %s <- '%s'.",
+			$stmt, json_encode($args)));
+
 		$this->query($stmt, $params, false, true);
 	}
 
@@ -440,7 +510,7 @@ class SQL {
 	 * @param string $table Table name.
 	 * @param array $where Dict of WHERE to delete.
 	 */
-	public function delete($table, $where=[]) {
+	final public function delete($table, $where=[]) {
 		$stmt = "DELETE FROM $table";
 		if ($where) {
 			$pair_wheres = [];
@@ -451,6 +521,11 @@ class SQL {
 			}
 			$stmt .= " WHERE " . implode(" AND ", $pair_wheres);
 		}
+
+		self::$logger->info(sprintf(
+			"SQL: delete ok: %s <- '%s'.",
+			$stmt, json_encode($where)));
+
 		$this->query($stmt, $params, false, true);
 	}
 
