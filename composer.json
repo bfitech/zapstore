@@ -13,7 +13,7 @@
     "php": ">=5.5 || ~7.0",
     "ext-sqlite3": "*",
     "ext-pdo_sqlite": "*",
-    "ext-mysql": "*",
+    "ext-mysqlnd": "*",
     "ext-pdo_mysql": "*",
     "ext-pgsql": "*",
     "ext-pdo_pgsql": "*",
