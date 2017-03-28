@@ -1,8 +1,4 @@
 
-branches:
-    only:
-        - travis
-        - master
 
 language: php
 
