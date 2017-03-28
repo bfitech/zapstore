@@ -179,7 +179,7 @@ class SQL {
 			self::$logger->debug(sprintf(
 				"SQL: connection opened: '%s'.",
 				json_encode($this->verified_params)));
-		} catch (Exception $e) {
+		} catch (\PDOException $e) {
 			self::$logger->error(sprintf(
 				"SQL: connection failed: '%s'.",
 				json_encode($this->verified_params)));

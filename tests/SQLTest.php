@@ -8,38 +8,70 @@ use BFITech\ZapStore as zs;
 
 class SQLTest extends TestCase {
 
-	public static $args = [
-		'sqlite3' => [
-			'dbtype' => 'sqlite3',
-			'dbname' => '/mnt/ramdisk/zapstore-test.sq3',
-		],
-		'pgsql' => [
-			'dbtype' => 'pgsql',
-			'dbname' => 'zapstore_test_db',
-			'dbhost' => 'localhost',
-			'dbuser' => 'zapstore_test',
-			'dbpass' => 'admin',
-		],
-		'mysql' => [
-			'dbtype' => 'mysql',
-			'dbname' => 'zapstore_test_db',
-			'dbhost' => '127.0.0.1',  # 'localhost' represents unix socket
-			'dbuser' => 'zapstore_test',
-			'dbpass' => 'admin',
-		],
-	];
-
+	public static $args = [];
 	public static $sql = [];
-
+	public static $config_file = null;
 	public static $logger = null;
 
+	public static function prepare_config() {
+		self::$config_file = __DIR__ . '/config.json';
+		if (file_exists(self::$config_file)) {
+			$args = @json_decode(
+				file_get_contents(self::$config_file), true);
+			if ($args) {
+				self::$args = $args;
+				return;
+			}
+		}
+		$args = [
+			'sqlite3' => [
+				'dbtype' => 'sqlite3',
+				'dbname' => __DIR__ . '/zapstore-test.sq3',
+			],
+			'pgsql' => [
+				'dbtype' => 'pgsql',
+				'dbname' => 'zapstore_test_db',
+				'dbhost' => 'localhost',
+				'dbuser' => 'postgres',
+				'dbpass' => '',
+			],
+			'mysql' => [
+				'dbtype' => 'mysql',
+				'dbname' => 'zapstore_test_db',
+				# 'localhost' is for unix socket
+				'dbhost' => '127.0.0.1',
+				'dbuser' => 'root',
+				'dbpass' => '',
+			],
+		];
+		file_put_contents(self::$config_file,
+			json_encode($args, JSON_PRETTY_PRINT));
+		self::$args = $args;
+	}
+
 	public static function setUpBeforeClass() {
-		$logfile = '/tmp/zs.log';
+		self::prepare_config();
+
+		$logfile = __DIR__ . '/zapstore.log';
 		if (file_exists($logfile))
 			@unlink($logfile);
 		self::$logger = new Logger(Logger::DEBUG, $logfile);
+
 		foreach (self::$args as $key => $val) {
-			self::$sql[$key] = new zs\SQL($val, self::$logger);
+			try {
+				self::$sql[$key] = new zs\SQL($val, self::$logger);
+			} catch(zs\SQLError $e) {
+				printf(
+					"ERROR: Cannot connect to '%s' test database.\n",
+					$key);
+				printf(
+					"       Fix test configuration: '%s'.\n",
+					self::$config_file);
+				printf(
+					"       For details, see log: '%s'.\n",
+					$logfile);
+				exit(1);
+			}
 		}
 	}
 

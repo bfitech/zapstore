@@ -7,7 +7,7 @@
 *.ini
 *.sq3
 .htaccess
-*config.php
+config.json
 
 /vendor/
 /docs/
