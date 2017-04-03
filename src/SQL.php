@@ -87,9 +87,10 @@ class SQL {
 	 * @param array $params Connection dict.
 	 * @param object $logger Logging service.
 	 */
-	public function __construct($params, $logger=null) {
+	public function __construct($params, Logger $logger=null) {
 
-		self::$logger = $logger ? $logger : new Logger();
+		self::$logger = $logger instanceof Logger
+			? $logger : new Logger();
 		self::$logger->debug("SQL: object instantiated.");
 
 		$verified_params = [];
