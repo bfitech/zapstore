@@ -85,7 +85,7 @@ class SQL {
 	 * Constructor.
 	 *
 	 * @param array $params Connection dict.
-	 * @param object $logger Logging service.
+	 * @param Logger $logger Instance of BFITech\\ZapCore\\Logger.
 	 */
 	public function __construct($params, Logger $logger=null) {
 
@@ -319,15 +319,15 @@ class SQL {
 	 *
 	 * To disable autocommit:
 	 * @code
-	 *     $this->connection->beginTransaction();
+	 *     $connection = $this->get_connection();
+	 *     $connection->beginTransaction();
 	 *     $this->query(...);
-	 *     $this->connection->commit();
+	 *     $connection->commit();
 	 * @endcode
-	 * and when exception is thrown:
+	 * and when exception is caught:
 	 * @code
-	 *     $this->connection->rollBack();
+	 *     $connection->rollBack();
 	 * @endcode
-	 * Use $this->get_connection() to access private $this->connection.
 	 *
 	 * @param string $stmt SQL statement.
 	 * @param array $args Arguments in numeric array.
