@@ -29,7 +29,7 @@
 	bootstrap="./vendor/autoload.php"
 >
 	<testsuites>
-		<testsuite name="ZapStoreTests">
+		<testsuite name="AllTests">
 			<directory>./tests</directory>
 		</testsuite>
 	</testsuites>
