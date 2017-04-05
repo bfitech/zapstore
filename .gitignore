@@ -7,7 +7,7 @@
 *.ini
 *.sq3
 .htaccess
-config.json
+zapstore-test.*
 
 /vendor/
 /docs/

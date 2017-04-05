@@ -13,8 +13,10 @@ class SQLTest extends TestCase {
 	public static $config_file = null;
 	public static $logger = null;
 
+	public static $engine = null;
+
 	public static function prepare_config() {
-		self::$config_file = __DIR__ . '/config.json';
+		self::$config_file = getcwd() . '/zapstore-test.config.json';
 		if (file_exists(self::$config_file)) {
 			$args = @json_decode(
 				file_get_contents(self::$config_file), true);
@@ -26,7 +28,7 @@ class SQLTest extends TestCase {
 		$args = [
 			'sqlite3' => [
 				'dbtype' => 'sqlite3',
-				'dbname' => __DIR__ . '/zapstore-test.sq3',
+				'dbname' => getcwd() . '/zapstore-test.sq3',
 			],
 			'pgsql' => [
 				'dbtype' => 'pgsql',
@@ -44,6 +46,12 @@ class SQLTest extends TestCase {
 				'dbpass' => '',
 			],
 		];
+		if (static::$engine) {
+			foreach ($args as $key => $_) {
+				if ($key != static::$engine)
+					unset($args[$key]);
+			}
+		}
 		file_put_contents(self::$config_file,
 			json_encode($args, JSON_PRETTY_PRINT));
 		self::$args = $args;
@@ -52,7 +60,7 @@ class SQLTest extends TestCase {
 	public static function setUpBeforeClass() {
 		self::prepare_config();
 
-		$logfile = __DIR__ . '/zapstore.log';
+		$logfile = getcwd() . '/zapstore-test.log';
 		if (file_exists($logfile))
 			@unlink($logfile);
 		self::$logger = new Logger(Logger::DEBUG, $logfile);
@@ -62,14 +70,11 @@ class SQLTest extends TestCase {
 				self::$sql[$key] = new zs\SQL($val, self::$logger);
 			} catch(zs\SQLError $e) {
 				printf(
-					"ERROR: Cannot connect to '%s' test database.\n",
-					$key);
-				printf(
-					"       Fix test configuration: '%s'.\n",
-					self::$config_file);
-				printf(
-					"       For details, see log: '%s'.\n",
-					$logfile);
+					"ERROR: Cannot connect to '%s' test database.\n\n" .
+					"- Check extensions for interpreter: %s.\n" .
+					"- Fix test configuration: %s.\n" .
+					"- Inspect test log: %s.\n\n",
+				$key, PHP_BINARY, self::$config_file, $logfile);
 				exit(1);
 			}
 		}
@@ -92,7 +97,32 @@ class SQLTest extends TestCase {
 		}
 	}
 
-	public function test_connection() {
+	public function test_exception() {
+		$args = ['dbname' => ':memory:', 'dbtype' => 'sqlite3'];
+		$sql = new zs\SQL($args, self::$logger);
+		# deprecated
+		$sql->open();
+
+		$invalid_stmt = "SELECT datetim() AS now, 1+? AS num";
+		try {
+			$sql->query($invalid_stmt, [2]);
+		} catch(zs\SQLError $e) {
+			$this->assertEquals($e->getStmt(), $invalid_stmt);
+			$this->assertEquals($e->getArgs(), [2]);
+			$this->assertEquals($e->code,
+				zs\SQLError::EXECUTION_ERROR);
+		}
+
+		$sql->close();
+		try {
+			$sql->query("SELECT datetime() AS now");
+		} catch(zs\SQLError $e) {
+			$this->assertEquals($e->code,
+				zs\SQLError::CONNECTION_ERROR);
+		}
+	}
+
+	public function test_connection_parameters() {
 		$args = ['dbname' => ':memory:'];
 		try {
 			$sql = new zs\SQL($args, self::$logger);
@@ -109,16 +139,64 @@ class SQLTest extends TestCase {
 				zs\SQLError::DBTYPE_ERROR);
 		}
 
-		$args['dbtype'] = 'sqlite3';
-		$sql = new zs\SQL($args, self::$logger);
-		$this->assertTrue(!empty($sql));
+		$args = [
+			'dbtype' => 'mysql',
+			'dbname' => 'test',
+		];
+		try {
+			$sql = new zs\SQL($args, self::$logger);
+		} catch(zs\SQLError $e) {
+			$this->assertEquals($e->code,
+				zs\SQLError::CONNECTION_ARGS_ERROR);
+		}
+		$args['dbuser'] = 'root';
+		$args['dbhost'] = '127.0.0.1';
+		$args['dbport'] = 5698;
+		try {
+			$sql = new zs\SQL($args, self::$logger);
+		} catch(zs\SQLError $e) {
+			$this->assertEquals($e->code,
+				zs\SQLError::CONNECTION_ERROR);
+		}
+
+		$args = [
+			'dbtype' => 'postgresql',
+			'dbname' => 'test',
+			'dbpass' => 'x',
+			'dbhost' => 'localhost',
+			'dbport' => 5698,
+		];
+		try {
+			$sql = new zs\SQL($args, self::$logger);
+		} catch(zs\SQLError $e) {
+			$this->assertEquals($e->code,
+				zs\SQLError::CONNECTION_ARGS_ERROR);
+		}
+		$args['dbuser'] = 'root';
+		$args['dbhost'] = '127.0.0.1';
+		try {
+			$sql = new zs\SQL($args, self::$logger);
+		} catch(zs\SQLError $e) {
+			$this->assertEquals($e->code,
+				zs\SQLError::CONNECTION_ERROR);
+		}
+
+		$args['dbtype'] = 'mssql';
+		try {
+			$sql = new zs\SQL($args, self::$logger);
+		} catch(zs\SQLError $e) {
+			$this->assertEquals($e->code,
+				zs\SQLError::DBTYPE_ERROR);
+		}
 	}
 
 	public function test_raw() {
 		$this->dbs(function($sql, $dbtype){
 
+			$this->assertEquals($sql->stmt_fragment('unknown'), null);
+
 			$default_timestamp = $sql->stmt_fragment(
-				'datetime', 3600);
+				'datetime', ['delta' => '3600']);
 			if ($dbtype == 'mysql')
 				$default_timestamp = 'CURRENT_TIMESTAMP';
 
@@ -179,13 +257,32 @@ class SQLTest extends TestCase {
 			}
 
 			if ($dbtype == 'pgsql') {
-				# postgres needs correct RETURNING key
+				# postgres with one RETURNING key
 				$val = $sql->insert('test', [
 					'name' => 'eggplant',
 					'value' => 8,
 				], 'value');
 				$this->assertEquals($val, 8);
 				$sql->delete('test', ['name' => 'eggplant']);
+
+				# postgres with all RETURNING key
+				$val = $sql->insert('test', [
+					'name' => 'eggplant',
+					'value' => 8,
+				]);
+				$this->assertEquals($val['value'], 8);
+				$sql->delete('test', ['name' => 'eggplant']);
+
+				# postgres with wrong RETURNING key
+				try {
+					$val = $sql->insert('test', [
+						'name' => 'eggplant',
+						'value' => 8,
+					], 'address');
+				} catch(zs\SQLError $e) {
+					$this->assertEquals(
+						$e->code, zs\SQLError::EXECUTION_ERROR);
+				}
 			}
 
 			if ($dbtype == 'sqlite3') {

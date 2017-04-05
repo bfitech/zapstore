@@ -166,16 +166,12 @@ class SQL {
 
 		try {
 			if (in_array($this->dbtype, ['sqlite3', 'pgsql'])) {
-				$this->connection = new \PDO($this->connection_string);
-			} elseif ($this->dbtype == 'mysql') {
 				$this->connection = new \PDO(
-					$this->connection_string, $this->dbuser, $this->dbpass);
+					$this->connection_string);
 			} else {
-				self::$logger->error(sprintf(
-					"SQL: database not supported: '%s'.",
-					$this->dbtype));
-				throw new SQLError(SQLError::DBTYPE_ERROR,
-					$this->dbtype . " not supported.");
+				$this->connection = new \PDO(
+					$this->connection_string,
+					$this->dbuser, $this->dbpass);
 			}
 			self::$logger->debug(sprintf(
 				"SQL: connection opened: '%s'.",
@@ -214,21 +210,16 @@ class SQL {
 	 * @return int Unix timestamp.
 	 */
 	public function unix_epoch() {
-		switch($this->dbtype) {
-			case 'pgsql':
-				return $this->query(
-					"SELECT EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now"
-				)['now'];
-			case 'mysql':
-				return $this->query(
-					"SELECT UNIX_TIMESTAMP() AS now")['now'];
-			case 'sqlite3':
-				return $this->query(
-					"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now"
-				)['now'];
-			default:
-				return null;
-		}
+		if ($this->dbtype == 'pgsql')
+			return $this->query(
+				"SELECT EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now"
+			)['now'];
+		if ($this->dbtype == 'mysql')
+			return $this->query(
+				"SELECT UNIX_TIMESTAMP() AS now")['now'];
+		return $this->query(
+			"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now"
+		)['now'];
 	}
 
 	/**
@@ -240,30 +231,22 @@ class SQL {
 	 *     only.
 	 */
 	public function stmt_fragment($part, $args=[]) {
-		if ($part == 'engine') {
-			if ($this->dbtype == 'mysql')
-				# we only intent to support FOREIGN KEY-capable engines
-				return "ENGINE=InnoDB";
-			return "";
-		}
-		if ($part == "index") {
-			switch ($this->dbtype) {
-				case 'pgsql':
-					return 'SERIAL PRIMARY KEY';
-				case 'mysql':
-					return 'INTEGER PRIMARY KEY AUTO_INCREMENT';
-				case 'sqlite3':
-					return 'INTEGER PRIMARY KEY AUTOINCREMENT';
-				default:
-					return null;
-			}
-		}
-		if ($part == 'datetime') {
+		$type = $this->dbtype;
+		if ($part == 'engine' && $type == 'mysql') {
+			# we only intent to support FOREIGN KEY-capable engines
+			return "ENGINE=InnoDB";
+		} elseif ($part == "index") {
+			if ($type == 'pgsql')
+				return 'SERIAL PRIMARY KEY';
+			if ($type == 'mysql')
+				return 'INTEGER PRIMARY KEY AUTO_INCREMENT';
+			return 'INTEGER PRIMARY KEY AUTOINCREMENT';
+		} elseif ($part == 'datetime') {
 			$delta = 0;
 			if ($args && isset($args['delta']))
 				$delta = (int)$args['delta'];
 			$date = '';
-			switch ($this->dbtype) {
+			switch ($type) {
 				case 'sqlite3':
 					$date = "(datetime('now', '+%s second'))";
 					break;
@@ -278,11 +261,10 @@ class SQL {
 					# not use this on DDL
 					$date = "date_add(now(), interval %s second)";
 					break;
-				default:
-					return null;
 			}
 			return sprintf($date, $delta);
 		}
+		return "";
 	}
 
 	/**
@@ -416,7 +398,10 @@ class SQL {
 	 * @param array $args Associative array of what to INSERT.
 	 * @param string $pk Primary key from which last insert ID should
 	 *     be retrieved. This won't take any effect on databases other
-	 *     than postgres.
+	 *     than postgres. This can take any column name, not necessarily
+	 *     column with PRIMARY KEY attributes. If left null, the whole
+	 *     new row is returned as an array. Using invalid column will
+	 *     throw exception.
 	 * @return int|array Last insert ID or IDs on success. Exception
 	 *     thrown on error.
 	 */
@@ -432,33 +417,16 @@ class SQL {
 		$placeholders = implode(',', $vals);
 
 		$stmt = "INSERT INTO $table ($columns) VALUES ($placeholders)";
-		if ($this->dbtype == 'pgsql') {
-			# postgres-specific; invalid pk will throw exception
-			# @note This can return any column, not necessarily those
-			#     with PRIMARY KEY attribute.
-			$stmt .= " RETURNING ";
-			$stmt .= $pk ? $pk : '*';
-		}
+		if ($this->dbtype == 'pgsql')
+			$stmt .= " RETURNING " . ($pk ? $pk : '*');
 
 		$this->is_insert = true;
 		$this->query($stmt, $args, false, true);
 
 		$ret = null;
 		if ($this->dbtype == 'pgsql') {
-			# postgres-specific
 			$last = $this->lastinsertid;
-			if (!$pk) {
-				$this->is_insert = false;
-				return $ret;
-			}
-			if (!isset($last[$pk])) {
-				# should never happen, but just to be sure
-				self::$logger->warning(sprintf(
-					"SQL: primary key not found: %s <- '%s'.",
-					$pk, $stmt));
-				return null;
-			}
-			$ret = $last[$pk];
+			$ret = $pk ? $last[$pk] : $last;
 		} else {
 			$ret = $this->connection->lastInsertId();
 		}
@@ -548,8 +516,6 @@ class SQL {
 	 * Use this, e.g. for dblink connection in postgres.
 	 */
 	public function get_connection_string() {
-		if (!$this->connection)
-			return null;
 		return $this->connection_string;
 	}
 
