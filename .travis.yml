@@ -14,8 +14,11 @@ services:
 before_script:
     - createdb -Upostgres -EUTF-8 -Ttemplate0 zapstore_test_db
     - mysql -e 'CREATE DATABASE zapstore_test_db'
-    - composer install -n -o --prefer-dist
+    - composer install -no --prefer-dist
 
 script:
     - php ./vendor/bin/phpunit -c phpunit.xml
+
+after_success:
+    - curl -s https://codecov.io/bash | bash
 
