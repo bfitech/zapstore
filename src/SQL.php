@@ -70,8 +70,8 @@ class SQL {
 
 	private $verified_params = null;
 
+	private $connection = null;
 	private $connection_string = '';
-	private $connection = false;
 
 	# postgres-specific, since lastinsertid is fetched from statement
 	# object instead of connection
@@ -272,6 +272,8 @@ class SQL {
 	 */
 	public function close() {
 		$this->connection = null;
+		$this->connection_string = '';
+		$this->verified_params = null;
 	}
 
 	/**

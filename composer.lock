@@ -12,12 +12,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/bfitech/zapcore.git",
-                "reference": "ce36f4163d3a659238d62dbc8dccd548b8f460ef"
+                "reference": "da3119fae7c6e2769767aae59511610ab6e37d57"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/bfitech/zapcore/zipball/ce36f4163d3a659238d62dbc8dccd548b8f460ef",
-                "reference": "ce36f4163d3a659238d62dbc8dccd548b8f460ef",
+                "url": "https://api.github.com/repos/bfitech/zapcore/zipball/da3119fae7c6e2769767aae59511610ab6e37d57",
+                "reference": "da3119fae7c6e2769767aae59511610ab6e37d57",
                 "shasum": ""
             },
             "require": {
@@ -44,7 +44,7 @@
                 }
             ],
             "description": "A very simple router and other utils.",
-            "time": "2017-04-05 06:24:36"
+            "time": "2017-04-06 00:34:58"
         }
     ],
     "packages-dev": [
