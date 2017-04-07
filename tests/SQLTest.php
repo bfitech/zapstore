@@ -115,14 +115,14 @@ class SQLTest extends TestCase {
 
 			$this->assertEquals($sql->stmt_fragment('unknown'), null);
 
-			$default_timestamp = $sql->stmt_fragment(
+			$expire_stmt = $sql->stmt_fragment(
 				'datetime', ['delta' => '3600']);
-			$utc_datetime = $sql->query(sprintf(
-					"SELECT (%s) AS time",
-					$default_timestamp)
-				)['time'];
+			$expire_datetime = $sql->query(
+				sprintf("SELECT (%s) AS time", $expire_stmt)
+			)['time'];
+
 			$dtobj = DateTime::createFromFormat(DateTime::ATOM,
-				str_replace(' ', 'T', $utc_datetime) . 'Z');
+				str_replace(' ', 'T', $expire_datetime) . 'Z');
 			$this->assertNotEquals($dtobj, false);
 
 			# this assumes each database server is correctly
@@ -137,7 +137,7 @@ class SQLTest extends TestCase {
 			$this->time_stmt_test = $dtobj;
 
 			if ($dbtype == 'mysql')
-				$default_timestamp = 'CURRENT_TIMESTAMP';
+				$expire_stmt = 'CURRENT_TIMESTAMP';
 
 			$sql->query_raw(sprintf(
 				"CREATE TABLE test (" .
@@ -147,13 +147,38 @@ class SQLTest extends TestCase {
 					" time TIMESTAMP NOT NULL DEFAULT %s " .
 				") %s",
 				$sql->stmt_fragment('index'),
-				$default_timestamp,
+				$expire_stmt,
 				$sql->stmt_fragment('engine')
 			));
 
 			$this->assertEquals(
 				$sql->get_connection_params(),
 				self::$args[$dbtype]);
+		});
+	}
+
+	public function test_datetime_fragment() {
+		$this->dbs(function($sql){
+			$unix_ts = [];
+			foreach ([
+				'past' => -3600,
+				'present' => 0,
+				'future' => 3600,
+			] as $tense => $delta) {
+				$stmt = $sql->stmt_fragment(
+					'datetime', ['delta' => $delta]);
+				$datetime = $sql->query(
+					sprintf("SELECT %s AS time", $stmt)
+				)['time'];
+				$dtobj = DateTime::createFromFormat(DateTime::ATOM,
+					str_replace(' ', 'T', $datetime) . 'Z');
+				$this->assertNotEquals($dtobj, false);
+				$unix_ts[$tense] = $dtobj->getTimestamp();
+			}
+			$this->assertEquals(
+				$unix_ts['future'] - $unix_ts['present'], 3600);
+			$this->assertEquals(
+				$unix_ts['present'] - $unix_ts['past'], 3600);
 		});
 	}
 

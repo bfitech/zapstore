@@ -242,27 +242,32 @@ class SQL {
 				return 'INTEGER PRIMARY KEY AUTO_INCREMENT';
 			return 'INTEGER PRIMARY KEY AUTOINCREMENT';
 		} elseif ($part == 'datetime') {
+
 			$delta = 0;
 			if ($args && isset($args['delta']))
 				$delta = (int)$args['delta'];
+			$sign = $delta >= 0 ? '+' : '-';
+			$delta = abs($delta);
+
 			$date = '';
 			switch ($type) {
 				case 'sqlite3':
-					$date = "(datetime('now', '+%s second'))";
+					$date = "(datetime('now', '%s%s second'))";
 					break;
 				case 'pgsql':
 					$date = "(" .
-					          "now() at time zone 'utc' + " .
+					          "now() at time zone 'utc' %s " .
 					          "interval '%s second'" .
 					        ")::timestamp(0)";
 					break;
 				case 'mysql':
 					# mysql cannot accept function default; do
 					# not use this on DDL
-					$date = "date_add(utc_timestamp(), interval %s second)";
+					$date = "(date_add(utc_timestamp(), interval %s%s second))";
 					break;
 			}
-			return sprintf($date, $delta);
+
+			return sprintf($date, $sign, $delta);
 		}
 		return "";
 	}
