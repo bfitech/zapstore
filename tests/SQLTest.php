@@ -25,6 +25,8 @@ class SQLTest extends TestCase {
 
 	public static $engine = null;
 
+	private $time_stmt_test = null;
+
 	public static function prepare_config() {
 		self::$config_file = getcwd() . '/zapstore-test.config.json';
 		if (file_exists(self::$config_file)) {
@@ -115,6 +117,25 @@ class SQLTest extends TestCase {
 
 			$default_timestamp = $sql->stmt_fragment(
 				'datetime', ['delta' => '3600']);
+			$utc_datetime = $sql->query(sprintf(
+					"SELECT (%s) AS time",
+					$default_timestamp)
+				)['time'];
+			$dtobj = DateTime::createFromFormat(DateTime::ATOM,
+				str_replace(' ', 'T', $utc_datetime) . 'Z');
+			$this->assertNotEquals($dtobj, false);
+
+			# this assumes each database server is correctly
+			# timed and there's no perceivable latency between
+			# it and current interpreter node
+			$sec_between_db = 2;
+			if ($this->time_stmt_test != null) {
+				$this->assertLessThan(
+					$sec_between_db,
+					$this->time_stmt_test->diff($dtobj)->s);
+			}
+			$this->time_stmt_test = $dtobj;
+
 			if ($dbtype == 'mysql')
 				$default_timestamp = 'CURRENT_TIMESTAMP';
 
@@ -130,7 +151,6 @@ class SQLTest extends TestCase {
 				$sql->stmt_fragment('engine')
 			));
 
-			$cstr = $sql->get_connection_string();
 			$this->assertEquals(
 				$sql->get_connection_params(),
 				self::$args[$dbtype]);

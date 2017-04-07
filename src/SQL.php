@@ -259,7 +259,7 @@ class SQL {
 				case 'mysql':
 					# mysql cannot accept function default; do
 					# not use this on DDL
-					$date = "date_add(now(), interval %s second)";
+					$date = "date_add(utc_timestamp(), interval %s second)";
 					break;
 			}
 			return sprintf($date, $delta);
