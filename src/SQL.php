@@ -73,11 +73,6 @@ class SQL {
 	private $connection = null;
 	private $connection_string = '';
 
-	# postgres-specific, since lastinsertid is fetched from statement
-	# object instead of connection
-	private $is_insert = false;
-	private $lastinsertid = null;
-
 	/** Logging service. */
 	public static $logger = null;
 
@@ -195,11 +190,11 @@ class SQL {
 	/**
 	 * Open connection.
 	 *
-	 * Opening connection now is automatically done by constructor.
-	 * When connection fails, throw an exception instead of modify
-	 * certain property.
-	 *
 	 * @deprecated
+	 *     Opening connection now is automatically done by constructor.
+	 *     When connection fails, throw an exception instead of modify
+	 *     certain property.
+	 *
 	 */
 	public function open() {
 	}
@@ -223,6 +218,32 @@ class SQL {
 	}
 
 	/**
+	 * SQL datetime fragment.
+	 */
+	private function stmt_fragment_datetime($delta) {
+		$sign = $delta >= 0 ? '+' : '-';
+		$delta = abs($delta);
+		$date = '';
+		switch ($this->dbtype) {
+			case 'sqlite3':
+				$date = "(datetime('now', '%s%s second'))";
+				break;
+			case 'pgsql':
+				$date = "(" .
+						  "now() at time zone 'utc' %s " .
+						  "interval '%s second'" .
+						")::timestamp(0)";
+				break;
+			case 'mysql':
+				# mysql cannot accept function default; do
+				# not use this on DDL
+				$date = "(date_add(utc_timestamp(), interval %s%s second))";
+				break;
+		}
+		return sprintf($date, $sign, $delta);
+	}
+
+	/**
 	 * SQL statement fragment.
 	 *
 	 * @param string $part A part sensitive to the database being used,
@@ -232,9 +253,11 @@ class SQL {
 	 */
 	public function stmt_fragment($part, $args=[]) {
 		$type = $this->dbtype;
-		if ($part == 'engine' && $type == 'mysql') {
-			# we only intent to support FOREIGN KEY-capable engines
-			return "ENGINE=InnoDB";
+		if ($part == 'engine') {
+			if ($type == 'mysql')
+				# we only intent to support FOREIGN KEY-capable engines
+				return "ENGINE=InnoDB";
+			return '';
 		} elseif ($part == "index") {
 			if ($type == 'pgsql')
 				return 'SERIAL PRIMARY KEY';
@@ -242,32 +265,10 @@ class SQL {
 				return 'INTEGER PRIMARY KEY AUTO_INCREMENT';
 			return 'INTEGER PRIMARY KEY AUTOINCREMENT';
 		} elseif ($part == 'datetime') {
-
 			$delta = 0;
 			if ($args && isset($args['delta']))
 				$delta = (int)$args['delta'];
-			$sign = $delta >= 0 ? '+' : '-';
-			$delta = abs($delta);
-
-			$date = '';
-			switch ($type) {
-				case 'sqlite3':
-					$date = "(datetime('now', '%s%s second'))";
-					break;
-				case 'pgsql':
-					$date = "(" .
-					          "now() at time zone 'utc' %s " .
-					          "interval '%s second'" .
-					        ")::timestamp(0)";
-					break;
-				case 'mysql':
-					# mysql cannot accept function default; do
-					# not use this on DDL
-					$date = "(date_add(utc_timestamp(), interval %s%s second))";
-					break;
-			}
-
-			return sprintf($date, $sign, $delta);
+			return $this->stmt_fragment_datetime($delta);
 		}
 		return "";
 	}
@@ -279,13 +280,6 @@ class SQL {
 		$this->connection = null;
 		$this->connection_string = '';
 		$this->verified_params = null;
-	}
-
-	/**
-	 * Reset connection properties.
-	 */
-	private function reset_prop() {
-		$this->lastinsertid = null;
 	}
 
 	/**
@@ -304,35 +298,9 @@ class SQL {
 	}
 
 	/**
-	 * Execute query.
-	 *
-	 * To disable autocommit:
-	 * @code
-	 *     $connection = $this->get_connection();
-	 *     $connection->beginTransaction();
-	 *     $this->query(...);
-	 *     $connection->commit();
-	 * @endcode
-	 * and when exception is caught:
-	 * @code
-	 *     $connection->rollBack();
-	 * @endcode
-	 *
-	 * @param string $stmt SQL statement.
-	 * @param array $args Arguments in numeric array.
-	 * @param bool $multiple Whether returned result contains all rows.
-	 * @param bool $raw Return connection if true, return rows otherwise.
-	 * @param bool $autocommit If true, execution is always on autocommit.
-	 * @return mixed Rows or connection depending on $raw switch.
-	 * @note Since SQLite3 does not enforce type safety, make sure arguments
-	 *     are cast properly before usage.
-	 * @see https://archive.fo/vKBEz#selection-449.0-454.0
+	 * Prepare and execute statement.
 	 */
-	final public function query(
-		$stmt, $args=[], $multiple=false,
-		$raw=false, $autocommit=true
-	) {
-		$this->reset_prop();
+	private function prepare_statement($stmt, $args=[]) {
 		if (!$this->connection) {
 			self::$logger->error(sprintf(
 				"SQL: connection failed: '%s'.",
@@ -370,32 +338,58 @@ class SQL {
 			);
 		}
 
-		if (!$raw) {
-			$res = ($multiple)
-				? $pstmt->fetchAll(\PDO::FETCH_ASSOC)
-				: $pstmt->fetch(\PDO::FETCH_ASSOC);
-			self::$logger->info(sprintf(
-				"SQL: query ok: %s <- '%s'.",
-				$stmt, json_encode($args)));
-		} else {
-			if ($this->dbtype == 'pgsql' && $this->is_insert)
-				$this->lastinsertid = $pstmt->fetch(\PDO::FETCH_ASSOC);
-			$res = $conn;
-		}
+		return $pstmt;
+	}
 
+	/**
+	 * Select query.
+	 *
+	 * @param string $stmt SQL statement.
+	 * @param array $args Arguments in numeric array.
+	 * @param bool $multiple Whether returned result contains all rows.
+	 * @return mixed Rows or connection depending on $raw switch.
+	 * @note Since SQLite3 does not enforce type safety, make sure
+	 *     arguments are cast properly before usage.
+	 * @see https://archive.fo/vKBEz#selection-449.0-454.0
+	 */
+	final public function query($stmt, $args=[], $multiple=false) {
+		$pstmt = $this->prepare_statement($stmt, $args);
+		$res = $multiple
+			? $pstmt->fetchAll(\PDO::FETCH_ASSOC)
+			: $pstmt->fetch(\PDO::FETCH_ASSOC);
+		self::$logger->info(sprintf(
+			"SQL: query ok: %s <- '%s'.",
+			$stmt, json_encode($args)));
 		return $res;
 	}
 
 	/**
 	 * Raw query execution.
 	 *
+	 * To disable autocommit:
+	 * @code
+	 *     $connection = $this->get_connection();
+	 *     $connection->beginTransaction();
+	 *     $this->query_raw(...);
+	 *     $connection->commit();
+	 * @endcode
+	 * and when exception is caught:
+	 * @code
+	 *     $connection->rollBack();
+	 * @endcode
+	 *
 	 * @param string $stmt SQL statement.
+	 * @param array $args Arguments in numeric array.
+	 * @return object Executed statement which, depending of $stmt, can
+	 *     be used for later processing. If $stmt is a SELECT statement,
+	 *     rows can be fetched from this.
 	 */
-	final public function query_raw($stmt){
+	final public function query_raw($stmt, $args=[]){
+		$pstmt = $this->prepare_statement($stmt, $args);
 		self::$logger->info(sprintf(
 			"SQL: query raw ok: %s.",
 			$this->one_line($stmt)));
-		return $this->query($stmt, [], false, true);
+		return $pstmt;
 	}
 
 	/**
@@ -415,10 +409,8 @@ class SQL {
 	final public function insert($table, $args=[], $pk=null) {
 
 		$keys = $vals = [];
-		foreach ($args as $key => $val) {
-			$keys[] = $key;
-			$vals[] = "?";
-		}
+		$keys = array_keys($args);
+		$vals = array_fill(0, count($args), '?');
 
 		$columns = implode(',', $keys);
 		$placeholders = implode(',', $vals);
@@ -427,12 +419,10 @@ class SQL {
 		if ($this->dbtype == 'pgsql')
 			$stmt .= " RETURNING " . ($pk ? $pk : '*');
 
-		$this->is_insert = true;
-		$this->query($stmt, $args, false, true);
+		$pstmt = $this->prepare_statement($stmt, $args);
 
-		$ret = null;
 		if ($this->dbtype == 'pgsql') {
-			$last = $this->lastinsertid;
+			$last = $pstmt->fetch(\PDO::FETCH_ASSOC);
 			$ret = $pk ? $last[$pk] : $last;
 		} else {
 			$ret = $this->connection->lastInsertId();
@@ -441,8 +431,6 @@ class SQL {
 		self::$logger->info(sprintf(
 			"SQL: insert ok: %s <- '%s'.",
 			$stmt, json_encode($args)));
-
-		$this->is_insert = false;
 		return $ret;
 	}
 
@@ -477,7 +465,7 @@ class SQL {
 			"SQL: update ok: %s <- '%s'.",
 			$stmt, json_encode($args)));
 
-		$this->query($stmt, $params, false, true);
+		$this->prepare_statement($stmt, $params);
 	}
 
 	/**
@@ -492,7 +480,7 @@ class SQL {
 			$pair_wheres = [];
 			$params = [];
 			foreach ($where as $key => $val) {
-				$pair_wheres[] = "${key}=?";
+				$pair_wheres[] = "{$key}=?";
 				$params[] = $val;
 			}
 			$stmt .= " WHERE " . implode(" AND ", $pair_wheres);
@@ -502,7 +490,7 @@ class SQL {
 			"SQL: delete ok: %s <- '%s'.",
 			$stmt, json_encode($where)));
 
-		$this->query($stmt, $params, false, true);
+		$this->prepare_statement($stmt, $params);
 	}
 
 	/* get properties */
