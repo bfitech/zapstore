@@ -22,9 +22,19 @@
     "ext-pdo_pgsql": "*",
     "phpunit/phpunit": "~4.8"
   },
+  "suggest": {
+    "bfitech/zapstore-sqlite3": "SQLite3-specific support.",
+    "bfitech/zapstore-mysql": "MySQL-specific support.",
+    "bfitech/zapstore-pgsql": "PostgreSQL-specific support."
+  },
   "autoload": {
     "psr-4": {
       "BFITech\\ZapStore\\": "src"
+    }
+  },
+  "extra": {
+    "branch-alias": {
+      "dev-master": "1.3.x-dev"
     }
   }
 }
