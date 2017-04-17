@@ -3,7 +3,8 @@
 
 use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger as Logger;
-use BFITech\ZapStore as zs;
+use BFITech\ZapStore\SQL;
+use BFITech\ZapStore\SQLError;
 
 
 /**
@@ -80,8 +81,8 @@ class SQLTest extends TestCase {
 
 		foreach (self::$args as $key => $val) {
 			try {
-				self::$sql[$key] = new zs\SQL($val, self::$logger);
-			} catch(zs\SQLError $e) {
+				self::$sql[$key] = new SQL($val, self::$logger);
+			} catch(SQLError $e) {
 				printf(
 					"ERROR: Cannot connect to '%s' test database.\n\n" .
 					"- Check extensions for interpreter: %s.\n" .
@@ -100,7 +101,7 @@ class SQLTest extends TestCase {
 				$sql->query_raw("DROP TABLE try0");
 				$sql->query_raw("DROP TABLE try1");
 				$sql->query_raw("DROP TABLE try2");
-			} catch(zs\SQLError $e) {}
+			} catch(SQLError $e) {}
 		}
 	}
 
@@ -154,6 +155,9 @@ class SQLTest extends TestCase {
 			$this->assertEquals(
 				$sql->get_connection_params(),
 				self::$args[$dbtype]);
+
+			$this->assertEquals(
+				strpos($sql->get_connection_string(), $dbtype), 0);
 		});
 	}
 
@@ -189,17 +193,17 @@ class SQLTest extends TestCase {
 		$this->dbs(function($sql, $dbtype){
 			try {
 				$sql->insert('wrong_table', ['a' => 'b']);
-			} catch (zs\SQLError $e) {
+			} catch (SQLError $e) {
 				# wrong table
 				$this->assertEquals($e->code,
-					zs\SQLError::EXECUTION_ERROR);
+					SQLError::EXECUTION_ERROR);
 			}
 			try {
 				$sql->insert('test', ['a' => 'b']);
-			} catch(zs\SQLError $e) {
+			} catch(SQLError $e) {
 				# wrong column
 				$this->assertEquals($e->code,
-					zs\SQLError::EXECUTION_ERROR);
+					SQLError::EXECUTION_ERROR);
 			}
 			$id = $sql->insert('test', [
 				'name' => 'apple',
@@ -242,9 +246,9 @@ class SQLTest extends TestCase {
 						'name' => 'eggplant',
 						'value' => 8,
 					], 'address');
-				} catch(zs\SQLError $e) {
+				} catch(SQLError $e) {
 					$this->assertEquals(
-						$e->code, zs\SQLError::EXECUTION_ERROR);
+						$e->code, SQLError::EXECUTION_ERROR);
 				}
 			}
 
@@ -268,27 +272,27 @@ class SQLTest extends TestCase {
 				# table doesn't exist
 				# can be used to check table existence
 				$sql->query("SELECT 1 FROM wrong_table");
-			} catch(zs\SQLError $e) {
+			} catch(SQLError $e) {
 				$this->assertEquals($e->code,
-					zs\SQLError::EXECUTION_ERROR);
+					SQLError::EXECUTION_ERROR);
 			}
 
 			try {
 				$result = $sql->query(
 					"SELECT name, val FROM test WHERE name=? AND date=?",
 				['avocado'], true);
-			} catch(zs\SQLError $e) {
+			} catch(SQLError $e) {
 				$this->assertEquals($e->code,
-					zs\SQLError::EXECUTION_ERROR);
+					SQLError::EXECUTION_ERROR);
 			}
 
 			try {
 				# syntax error
 				$sql->query(
 					"SELECT * FRO test ORDER BY id LIMIT 3");
-			} catch(zs\SQLError $e) {
+			} catch(SQLError $e) {
 				$this->assertEquals($e->code,
-					zs\SQLError::EXECUTION_ERROR);
+					SQLError::EXECUTION_ERROR);
 			}
 
 			# single result returns dict
@@ -308,10 +312,10 @@ class SQLTest extends TestCase {
 				"SELECT * FROM test ORDER BY id LIMIT 3", [], true));
 			$this->assertEquals($result, [1, 2, 3]);
 
-			# provided that database and interpreter servers have
-			# correct clock, if this fails, then there must be
-			# connection bottleneck
-			$this->assertTrue(abs($sql->unix_epoch() - time()) < 1);
+			# check if database and interpreter time match to the
+			# hour
+			$tstamp = gmdate('Y-m-d H', $sql->unix_epoch());
+			$this->assertEquals($tstamp, gmdate('Y-m-d H'));
 		});
 	}
 
@@ -322,9 +326,9 @@ class SQLTest extends TestCase {
 		$this->dbs(function($sql){
 			try {
 				$sql->delete("wrong_table", ['name' => 'banana']);
-			} catch(zs\SQLError $e) {
+			} catch(SQLError $e) {
 				$this->assertEquals($e->code,
-					zs\SQLError::EXECUTION_ERROR);
+					SQLError::EXECUTION_ERROR);
 			}
 
 			$sql->delete('test', ['name' => 'banana']);
@@ -344,9 +348,9 @@ class SQLTest extends TestCase {
 					['name' => 'avocado'],
 					['name' => 'apple']
 				);
-			} catch(zs\SQLError $e) {
+			} catch(SQLError $e) {
 				$this->assertEquals($e->code,
-					zs\SQLError::EXECUTION_ERROR);
+					SQLError::EXECUTION_ERROR);
 			}
 
 			$sql->update("test",
@@ -373,10 +377,10 @@ class SQLTest extends TestCase {
 		$this->dbs(function($sql){
 			try {
 				$sql->query_raw("CREATE TABLE test (id INTEGER)");
-			} catch(zs\SQLError $e) {
+			} catch(SQLError $e) {
 				# table exists
 				$this->assertEquals($e->code,
-					zs\SQLError::EXECUTION_ERROR);
+					SQLError::EXECUTION_ERROR);
 			}
 
 			$conn = $sql->get_connection();
@@ -397,17 +401,17 @@ class SQLTest extends TestCase {
 				$sql->query_raw("CREATE TABLE try2 (id INTEGER)");
 				$sql->query_raw("CREATE TABLE try1 (id INTEGER)");
 				$conn->commit();
-			} catch(zs\SQLError $e) {
+			} catch(SQLError $e) {
 				$this->assertEquals($e->code,
-					zs\SQLError::EXECUTION_ERROR);
+					SQLError::EXECUTION_ERROR);
 				$conn->rollBack();
 			}
 			try {
 				# try2 should be rolled back
 				$sql->query("SELECT 1 val FROM try2");
-			} catch(zs\SQLError $e) {
+			} catch(SQLError $e) {
 				$this->assertEquals($e->code,
-					zs\SQLError::EXECUTION_ERROR);
+					SQLError::EXECUTION_ERROR);
 			}
 		});
 	}
