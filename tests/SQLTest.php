@@ -156,8 +156,9 @@ class SQLTest extends TestCase {
 				$sql->get_connection_params(),
 				self::$args[$dbtype]);
 
-			$this->assertEquals(
-				strpos($sql->get_connection_string(), $dbtype), 0);
+			$dbtype_test = substr($dbtype, 0, 5);
+			$cstr = $sql->get_connection_string();
+			$this->assertEquals(strpos($cstr, $dbtype_test), 0);
 		});
 	}
 
