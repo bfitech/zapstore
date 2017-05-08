@@ -279,9 +279,11 @@ class SQLTest extends TestCase {
 			}
 
 			try {
-				$result = $sql->query(
-					"SELECT name, val FROM test WHERE name=? AND date=?",
-				['avocado'], true);
+				$result = $sql->query("
+					SELECT name, val
+					FROM test
+					WHERE name=? AND date=?
+				", ['avocado'], true);
 			} catch(SQLError $e) {
 				$this->assertEquals($e->code,
 					SQLError::EXECUTION_ERROR);

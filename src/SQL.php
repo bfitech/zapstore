@@ -80,12 +80,11 @@ class SQL {
 	 * Constructor.
 	 *
 	 * @param array $params Connection dict.
-	 * @param Logger $logger Instance of BFITech\\ZapCore\\Logger.
+	 * @param Logger $logger Logger instance.
 	 */
 	public function __construct($params, Logger $logger=null) {
 
-		self::$logger = $logger instanceof Logger
-			? $logger : new Logger();
+		self::$logger = $logger ? $logger : new Logger();
 		self::$logger->debug("SQL: object instantiated.");
 
 		$verified_params = [];
@@ -283,18 +282,19 @@ class SQL {
 	}
 
 	/**
-	 * Merge into single line.
+	 * Merge log into single line.
+	 *
+	 * This will convert certain whitespaces into their symbolic
+	 * representations.
 	 */
 	private function one_line($lines) {
-		$lines = preg_replace('![\n\r\t]+!m', ' ', $lines);
-		return trim(preg_replace('! +!', ' ', $lines));
-	}
-
-	/**
-	 * Get first in lines.
-	 */
-	private function first_line($lines) {
-		return $this->one_line(explode("\n", $lines)[0]);
+		$lines = trim($lines);
+		$lines = str_replace([
+			"\t", "\n", "\r",
+		], [
+			" ", '\n', '\r',
+		], $lines);
+		return preg_replace('! +!', ' ', $lines);
 	}
 
 	/**
@@ -315,8 +315,8 @@ class SQL {
 		} catch (\PDOException $e) {
 			self::$logger->error(sprintf(
 				"SQL: execution failed: %s <- '%s': %s.",
-				$stmt, json_encode($args),
-				$this->first_line($e->getMessage())));
+				$this->one_line($stmt), json_encode($args),
+				$this->one_line($e->getMessage())));
 			throw new SQLError(
 				SQLError::EXECUTION_ERROR,
 				sprintf("Execution error: %s.", $e->getMessage()),
@@ -329,8 +329,8 @@ class SQL {
 		} catch (\PDOException $e) {
 			self::$logger->error(sprintf(
 				"SQL: execution failed: %s <- '%s': %s.",
-				$stmt, json_encode($args),
-				$this->first_line($e->getMessage())));
+				$this->one_line($stmt), json_encode($args),
+				$this->one_line($e->getMessage())));
 			throw new SQLError(
 				SQLError::EXECUTION_ERROR,
 				sprintf("Execution error: %s.", $e->getMessage()),
@@ -359,7 +359,7 @@ class SQL {
 			: $pstmt->fetch(\PDO::FETCH_ASSOC);
 		self::$logger->info(sprintf(
 			"SQL: query ok: %s <- '%s'.",
-			$stmt, json_encode($args)));
+			$this->one_line($stmt), json_encode($args)));
 		return $res;
 	}
 
@@ -430,7 +430,7 @@ class SQL {
 
 		self::$logger->info(sprintf(
 			"SQL: insert ok: %s <- '%s'.",
-			$stmt, json_encode($args)));
+			$this->one_line($stmt), json_encode($args)));
 		return $ret;
 	}
 
@@ -463,7 +463,7 @@ class SQL {
 
 		self::$logger->info(sprintf(
 			"SQL: update ok: %s <- '%s'.",
-			$stmt, json_encode($args)));
+			$this->one_line($stmt), json_encode($args)));
 
 		$this->prepare_statement($stmt, $params);
 	}
@@ -488,7 +488,7 @@ class SQL {
 
 		self::$logger->info(sprintf(
 			"SQL: delete ok: %s <- '%s'.",
-			$stmt, json_encode($where)));
+			$this->one_line($stmt), json_encode($where)));
 
 		$this->prepare_statement($stmt, $params);
 	}
