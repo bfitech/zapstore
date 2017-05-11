@@ -161,6 +161,31 @@ class Redis {
 		}
 	}
 
+	/**
+	 * # set
+	 * 
+	 * Set the string value in argument as value of the key. 
+	 * If you're using Redis >= 2.6.12, you can pass extended options 
+	 * as explained below
+	 *
+	 * @param string $key key of the value
+	 * @param string $val value of the key
+	 * @param mixed Timeout or Options Array (optional). If you pass 
+	 *    an integer, phpredis will redirect to SETEX, and will try to 
+	 *    use Redis >= 2.6.12 extended options if you pass an array with
+	 *    valid values
+	 * @return bool TRUE if the command is successful
+	 */
+	final public function set($key, $value, $options=null) {
+		if ($this->redistype == 'redis') 
+			$res = $this->connection->set($key, $value, $options);
+		else 
+			$res = $this->connection->set($key, $value);
+		self::$logger->info(sprintf(
+			"Redis: set ok: %s -> '%s'.",
+			$key, $value));
+		return $res;
+	}
 
 	/**
 	 * Close connection.
