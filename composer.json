@@ -20,12 +20,16 @@
     "ext-pdo_mysql": "*",
     "ext-pgsql": "*",
     "ext-pdo_pgsql": "*",
+    "ext-redis" : "*",
+    "predis/predis": "~1.1.1",
     "phpunit/phpunit": "~4.8"
   },
   "suggest": {
     "bfitech/zapstore-sqlite3": "SQLite3-specific support.",
     "bfitech/zapstore-mysql": "MySQL-specific support.",
-    "bfitech/zapstore-pgsql": "PostgreSQL-specific support."
+    "bfitech/zapstore-pgsql": "PostgreSQL-specific support.",
+    "bfitech/zapstore-redis": "redis-specific support.",
+    "bfitech/zapstore-predis": "predis-specific support."
   },
   "autoload": {
     "psr-4": {
