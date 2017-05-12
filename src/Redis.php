@@ -247,10 +247,10 @@ class Redis {
 	 * @return long Number of keys deleted.
 	 */
 	final public function del($key) {
-		$res = $this->connection->delete($key);
+		$res = $this->connection->del($key);
 		$res_log = (!$res) ? 'not ok':'ok';
 		$res_key = '';
-		if (!is_array($key))
+		if (is_array($key))
 			$res_key = json_encode($key);
 		self::$logger->info(sprintf(
 			"Redis: delete %s: %s.",

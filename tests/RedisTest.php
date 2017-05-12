@@ -109,4 +109,13 @@ class RedisTest extends TestCase {
 			$this->assertEquals(in_array($ret, [0,1]), true);
 		});
 	}
+
+	public function test_del() {
+		$this->loopredis(function($redis, $redistype){
+			$redis->set('key1', 'val1');
+			$redis->set('key2', 'val2');
+			$ret = $redis->del(['key1', 'key2']); /* return 2 */
+			$this->assertEquals($ret, 2);
+		});		
+	}
 }
