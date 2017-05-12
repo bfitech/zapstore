@@ -242,7 +242,7 @@ class Redis {
 	 *
 	 * Remove specified keys.
 	 * 
-	 * @param array An array of keys, or an undefined number of parameters, 
+	 * @param array $key An array of keys, or an undefined number of parameters, 
 	 *     each a key: key1 key2 key3 ... keyN
 	 * @return long Number of keys deleted.
 	 */
