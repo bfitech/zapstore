@@ -9,6 +9,7 @@
 .htaccess
 composer.lock
 zapstore-test.*
+zapstore-redis-test.*
 
 /vendor/
 /docs/
