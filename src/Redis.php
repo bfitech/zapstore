@@ -181,10 +181,36 @@ class Redis {
 			$res = $this->connection->set($key, $value, $options);
 		else 
 			$res = $this->connection->set($key, $value);
+		$res_log = (!$res) ? 'not ok':'ok';
 		self::$logger->info(sprintf(
-			"Redis: set ok: %s -> '%s'.",
-			$key, $value));
+			"Redis: set %s: %s -> '%s'.",
+			$res_log, $key, $value));
 		return $res;
+	}
+
+	/**
+	 * # hset
+	 *
+	 * Adds a value to the hash stored at key.
+	 *
+	 * @param string $key
+	 * @param string $hkey
+	 * @param string $value
+	 * @return long 1 if value didn't exist and was added successfully, 
+	 *     0 if the value was already present and was replaced, 
+	 *     FALSE if there was an error.
+	 */
+	final public function hset($key, $hkey, $value) {
+		$method = 'hSet';
+		if ($this->redistype == 'predis')
+			$function = strtolower($method);
+		$res = $this->connection->$method($key, $hkey, $value);
+		$res_log = (!$res) ? 'not ok':'ok';
+		self::$logger->info(sprintf(
+			"Redis: hset %s: %s, %s, '%s'.",
+			$res_log, $key, $hkey, $value));
+		return $res;
+
 	}
 
 	/**
