@@ -165,7 +165,7 @@ class Redis {
 				$this->connection = new \Predis\CLient(
 					$this->connection_string);
 			} else {
-				$this->connection = new Redis();
+				$this->connection = new \Redis();
 				if (!$this->redisport)
 					$this->redisport = 6379;
 				if (!$this->redistimeout)
