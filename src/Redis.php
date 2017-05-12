@@ -14,6 +14,22 @@ class RedisError extends \Exception {
 	const CONNECTION_ARGS_ERROR = 0x20;
 	/** Connection failed. */
 	const CONNECTION_ERROR = 0x30;
+
+	/** Default errno. */
+	public $code = 0;
+	/** Default errmsg. */
+	public $message = null;
+
+	/**
+	 * Constructor.
+	 */
+	public function __construct(
+		$code, $message
+	) {
+		$this->code = $code;
+		$this->message = $message;
+		parent::__construct($message, $code, null);
+	}
 }
 
 /**
