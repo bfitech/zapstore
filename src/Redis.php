@@ -86,6 +86,14 @@ class Redis {
 			}
 		}
 
+		if (!in_array($this->redistype, ['redis', 'predis'])) {
+			self::$logger->error(sprintf(
+				"Redis: redis library not supported: '%s'.",
+				$this->redistype));
+			throw new RedisError(RedisError::REDISTYPE_ERROR,
+				$this->redistype . " not supported.");
+		}
+
 		if ($this->redistype == 'predis') {
 			/**
 			 * # Connecting to a server
