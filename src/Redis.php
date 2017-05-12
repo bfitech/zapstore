@@ -229,12 +229,33 @@ class Redis {
 		if ($this->redistype == 'predis')
 			$function = strtolower($method);
 		$res = $this->connection->$method($key, $hkey, $value);
-		$res_log = (!$res) ? 'not ok':'ok';
+		$res_log = ($res === false) ? 'not ok':'ok';
 		self::$logger->info(sprintf(
 			"Redis: hset %s: %s, %s, '%s'.",
 			$res_log, $key, $hkey, $value));
 		return $res;
 
+	}
+
+	/**
+	 * # del
+	 *
+	 * Remove specified keys.
+	 * 
+	 * @param array An array of keys, or an undefined number of parameters, 
+	 *     each a key: key1 key2 key3 ... keyN
+	 * @return long Number of keys deleted.
+	 */
+	final public function del($key) {
+		$res = $this->connection->delete($key);
+		$res_log = (!$res) ? 'not ok':'ok';
+		$res_key = '';
+		if (!is_array($key))
+			$res_key = json_encode($key);
+		self::$logger->info(sprintf(
+			"Redis: delete %s: %s.",
+			$res_log, $res_key));
+		return $res;
 	}
 
 	/**

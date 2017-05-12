@@ -104,7 +104,7 @@ class RedisTest extends TestCase {
 	public function test_hset() {
 		$this->loopredis(function($redis, $redistype){
 			$ret = $redis->hset('h', 'mykey', 'hello');
-			if(!$ret)
+			if($ret === false)
 				$ret = 2;
 			$this->assertEquals(in_array($ret, [0,1]), true);
 		});
