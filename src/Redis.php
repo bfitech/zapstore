@@ -176,11 +176,11 @@ class Redis {
 			self::$logger->debug(sprintf(
 				"Redis: connection opened: '%s'.",
 				json_encode($this->verified_params)));
-		} catch (\PDOException $e) {
+		} catch (\RedisException $e) {
 			self::$logger->error(sprintf(
 				"Redis: connection failed: '%s'.",
 				json_encode($this->verified_params)));
-			throw new SQLError(SQLError::CONNECTION_ERROR,
+			throw new RedisError(RedisError::CONNECTION_ERROR,
 				$this->dbtype . " connection error.");
 		}
 	}
@@ -249,12 +249,112 @@ class Redis {
 	final public function del($key) {
 		$res = $this->connection->del($key);
 		$res_log = (!$res) ? 'not ok':'ok';
-		$res_key = '';
+		$res_key = $key;
 		if (is_array($key))
 			$res_key = json_encode($key);
 		self::$logger->info(sprintf(
 			"Redis: delete %s: %s.",
 			$res_log, $res_key));
+		return $res;
+	}
+
+	/**
+	 * # expire
+	 *
+	 * Sets an expiration date (a timeout) on an item. 
+	 * 
+	 * @param string $key The key that will disappear.
+	 * @param integer $ttl The key's remaining Time To Live, in seconds.
+	 * @return bool TRUE in case of success, FALSE in case of failure.
+	 */
+	final public function expire($key, $ttl) {
+		$method = 'setTimeout';
+		if ($this->redistype == 'predis')
+			$method = 'expire';
+		$res = $this->connection->$method($key, $ttl);
+		self::$logger->info(sprintf(
+			"Redis: expire %s: %s.",
+			$key, $ttl));
+		return $res;
+	}
+
+	/**
+	 * # expireat
+	 * 
+	 * Sets an expiration date (a timestamp) on an item. 
+	 *
+	 * @param string $key The key that will disappear.
+	 * @param integer $ttl Unix timestamp. The key's date of death, 
+	 *     in seconds from Epoch time.
+	 * @return bool TRUE in case of success, FALSE in case of failure.
+	 */
+	final public function expireat($key, $ttl) {
+		$method = 'expireAt';
+		if ($this->redistype == 'predis')
+			$method = strtolower($method);
+		$res = $this->connection->$method($key, $ttl);
+		self::$logger->info(sprintf(
+			"Redis: %s expire at: %s.",
+			$key, $ttl));
+		return $res;
+	}
+
+	/**
+	 * # get
+	 * 
+	 * Get the value related to the specified key
+	 * 
+	 * @param string $key 
+	 * @return string or bool: If key didn't exist, FALSE is returned. 
+	 *     Otherwise, the value related to this key is returned.
+	 */
+	final public function get($key) {
+		$res = $this->connection->get($key);
+		self::$logger->info(sprintf(
+			"Redis: get value of %s: %s.",
+			$key, $res));
+		if ($this->redistype == 'predis')
+			if($res == null)
+				$res = false;
+		return $res;
+	}
+
+	/**
+	 * # hget
+	 *
+	 * Gets a value from the hash stored at key. If the hash table 
+	 * doesn't exist, or the key doesn't exist, FALSE is returned.
+	 *
+	 * @param string $key 
+	 * @param string $hkey
+	 * @return string The value, if the command executed successfully 
+	 *     BOOL FALSE in case of failure
+	 */
+	final public function hget($key, $hkey=null) {
+		$method = 'hGet';
+		if ($this->redistype == 'predis')
+			$method = strtolower($method);
+		$res = $this->connection->$method($key, $hkey);
+		self::$logger->info(sprintf(
+			"Redis: hget %s, %s: %s.",
+			$key, $hkey, $res));
+		return $res;
+	}
+
+	/**
+	 * # ttl
+	 * 
+	 * Returns the time to live left for a given key in seconds (ttl)
+	 *
+	 * @param string $key
+	 * @return long The time to live in seconds. If the key has no ttl, 
+	 *     -1 will be returned, and -2 if the key doesn't exist.
+	 */
+	final public function ttl($key) {
+		$res = $this->connection->ttl($key);
+		self::$logger->info(sprintf(
+			"Redis: ttl %s: %s.",
+			$key, $res));
 		return $res;
 	}
 

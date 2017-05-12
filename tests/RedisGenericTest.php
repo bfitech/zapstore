@@ -23,14 +23,30 @@ class RedisGenericTest extends TestCase {
 
 	public function test_exception() {
 		$args = [
+			'redisscheme' => 'tcp',
 			'redistype' => 'predis', 
+			'redispass' => 'root',
+			'redisdb' => 'redisdb',
+			'redistimeout' => 5,
 			'redishost' => '10.0.0.1'
 		];
 
 		try {
 			$redis = new ZapRedis($args, self::$logger);
 			$redis->close();
-		} catch(SQLError $e) {
+		} catch(ZapRedisErr $e) {
+			$this->assertEquals($e->code,
+				ZapRedisErr::CONNECTION_ERROR);
+		}
+
+		$args = [
+			'redistype' => 'redis',
+			'redishost' => '127.0.0.1'
+		];
+		try {
+			$redis = new ZapRedis($args, self::$logger);
+			$redis->close();
+		} catch(ZapRedisErr $e) {
 			$this->assertEquals($e->code,
 				ZapRedisErr::CONNECTION_ERROR);
 		}

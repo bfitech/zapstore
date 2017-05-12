@@ -87,7 +87,26 @@ class RedisTest extends TestCase {
 	private function loopredis($fn) {
 		foreach (self::$args as $redistype => $_) {
 			$fn(self::$redis[$redistype], $redistype);
+			$this->assertEquals(
+				self::$redis[$redistype]->get_connection_params(),
+				self::$args[$redistype]);
+
+			if ($redistype == 'predis') {
+				$key_test = substr($redistype, 0, 5);
+				$cstr = self::$redis[$redistype]->get_connection_string();
+				$this->assertEquals(strpos($cstr, $key_test), 0);
+			}
 		}
+	}
+
+	public function test_connection() {
+		$this->loopredis(function($redis, $redistype){
+			$conn = $redis->get_connection();
+			if ($redistype == 'redis')
+				$this->assertEquals(($conn instanceof \Redis), true);
+			if ($redistype == 'predis')
+				$this->assertEquals(($conn instanceof \Predis\Client), true);
+		});
 	}
 
 	public function test_set() {
@@ -117,5 +136,56 @@ class RedisTest extends TestCase {
 			$ret = $redis->del(['key1', 'key2']); /* return 2 */
 			$this->assertEquals($ret, 2);
 		});		
+	}
+
+	public function test_expire() {
+		$this->loopredis(function($redis, $redistype){
+			$redis->set('key1', 'val1');
+			$redis->expire('key1', 3);
+			sleep(3);
+			$ret = $redis->get('key1'); /* return false */
+			$this->assertEquals($ret, false);
+		});		
+	}
+
+	public function test_expireat() {
+		$this->loopredis(function($redis, $redistype){
+			$redis->set('key1', 'val1');
+			$redis->expireat('key1', time() + 2);
+			sleep(3);
+			$ret = $redis->get('key1'); /* return false */
+			$this->assertEquals($ret, false);
+		});	
+	}
+
+	public function test_get() {
+		$this->loopredis(function($redis, $redistype){
+			$redis->set('key1', 'val1');
+			$ret = $redis->get('key1'); 
+			$this->assertEquals($ret, 'val1');
+			$redis->del('key1');
+		});	
+	}
+
+	public function test_hget() {
+		$this->loopredis(function($redis, $redistype){
+			$redis->del('h');
+			$redis->hset('h', 'key1', 'val1');
+			$redis->hset('h', 'key2', 'val2');
+			$ret = $redis->hget('h', 'key1');
+			$this->assertEquals($ret, 'val1');
+			$redis->del('h');
+		});	
+	}
+
+	public function test_ttl() {
+		$this->loopredis(function($redis, $redistype){
+			$redis->set('key1', 'val1');
+			$expire = time() + 10;
+			$redis->expireat('key1', $expire);
+			$ttl = $redis->ttl('key1');
+			$this->assertEquals(in_array($ttl, [9,10]), true);
+			$redis->del('key1');
+		});	
 	}
 }
