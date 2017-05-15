@@ -146,18 +146,18 @@ class Redis {
 			if ($this->redisscheme)
 				$cstr = sprintf("%s:", $this->redisscheme);
 			$cstr .= sprintf("//%s/", $this->redishost);
-			$qrystr = '';
+			$qry = [];
 			if ($this->redispass) 
-				$qrystr .= sprintf("?password=%s", $this->redispass);
+				$qry['password'] = $this->redispass;
+
 			if ($this->redisdb) {
-				$qrystr .= (empty($qrystr)) ? '?' : '&';
-				$qrystr .= sprintf("database=%s", $this->redisdb);
+				$qry['database'] = $this->redisdb;
 			}
 			if ($this->redistimeout) {
-				$qrystr .= (empty($qrystr)) ? '?' : '&';
-				$qrystr .= sprintf("timeout=%s", $this->redistimeout);	
+				$qry['timeout'] = $this->redistimeout;	
 			}
-			$this->connection_string = $cstr . $qrystr;
+			$qrystr = http_build_query($qry);
+			$this->connection_string = $cstr . '?' . $qrystr;
 		}
 
 		try {
