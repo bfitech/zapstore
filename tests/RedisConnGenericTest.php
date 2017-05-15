@@ -6,6 +6,7 @@ use BFITech\ZapCore\Logger as Logger;
 use BFITech\ZapStore\RedisConn as ZapRedis;
 use BFITech\ZapStore\RedisError as ZapRedisErr;
 
+
 /**
  * Generic tests.
  *
@@ -40,7 +41,7 @@ class RedisConnGenericTest extends TestCase {
 	public function test_exception() {
 		$args = [
 			'redisscheme' => 'tcp',
-			'redistype' => 'predis', 
+			'redistype' => 'predis',
 			'redispass' => 'root',
 			'redisdb' => 'redisdb',
 			'redistimeout' => 5,
@@ -87,3 +88,4 @@ class RedisConnGenericTest extends TestCase {
 		}
 	}
 }
+

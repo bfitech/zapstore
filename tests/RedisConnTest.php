@@ -1,11 +1,12 @@
 <?php
 
+
 use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger as Logger;
 use BFITech\ZapStore\RedisConn as ZapRedis;
 use BFITech\ZapStore\RedisError as ZapRedisErr;
-
 use Predis\Response\Status as ResponseStatus;
+
 
 /**
  * Database-specific test.
@@ -135,7 +136,7 @@ class RedisConnTest extends TestCase {
 			$redis->set('key2', 'val2');
 			$ret = $redis->del(['key1', 'key2']); /* return 2 */
 			$this->assertEquals($ret, 2);
-		});		
+		});
 	}
 
 	public function test_expire() {
@@ -151,16 +152,16 @@ class RedisConnTest extends TestCase {
 
 			$ret = $redis->get('key2'); /* return false */
 			$this->assertEquals($ret, false);
-		});		
+		});
 	}
 
 	public function test_get() {
 		$this->loopredis(function($redis, $redistype){
 			$redis->set('key1', 'val1');
-			$ret = $redis->get('key1'); 
+			$ret = $redis->get('key1');
 			$this->assertEquals($ret, 'val1');
 			$redis->del('key1');
-		});	
+		});
 	}
 
 	public function test_hget() {
@@ -171,7 +172,7 @@ class RedisConnTest extends TestCase {
 			$ret = $redis->hget('h', 'key1');
 			$this->assertEquals($ret, 'val1');
 			$redis->del('h');
-		});	
+		});
 	}
 
 	public function test_ttl() {
@@ -180,8 +181,9 @@ class RedisConnTest extends TestCase {
 			$expire = time() + 10;
 			$redis->expireat('key1', $expire);
 			$ttl = $redis->ttl('key1');
-			$this->assertEquals(in_array($ttl, [9,10]), true);
+			$this->assertEquals(in_array($ttl, [9, 10]), true);
 			$redis->del('key1');
-		});	
+		});
 	}
 }
+

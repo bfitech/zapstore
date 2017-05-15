@@ -1,8 +1,11 @@
 <?php
 
+
 namespace BFITech\ZapStore;
 
+
 use BFITech\ZapCore\Logger as Logger;
+
 
 /**
  * Redis exception class.
@@ -66,7 +69,7 @@ class RedisConn {
 
 		$verified_params = [];
 		foreach ([
-			'redistype', 'redishost', 'redisport', 
+			'redistype', 'redishost', 'redisport',
 			'redispass', 'redisdb', 'redisscheme', 'redistimeout',
 		] as $key) {
 			if (!isset($params[$key]))
@@ -98,48 +101,48 @@ class RedisConn {
 			/**
 			 * # Connecting to a server
 			 *
-			 * Predis offers various means to connect to a single server 
-			 * or a cluster of servers. By specifying two or more servers, 
-			 * Predis automatically switches over a clustered connection 
-			 * that transparently handles client-side sharding over multiple 
-			 * connections. It should be noted that clustered connections 
+			 * Predis offers various means to connect to a single server
+			 * or a cluster of servers. By specifying two or more servers,
+			 * Predis automatically switches over a clustered connection
+			 * that transparently handles client-side sharding over multiple
+			 * connections. It should be noted that clustered connections
 			 * have a little more overhead when compared to single connections
-			 * (that is, when Predis is connected only to a single server) 
-			 * due to a more complex internal structure needed to support 
+			 * (that is, when Predis is connected only to a single server)
+			 * due to a more complex internal structure needed to support
 			 * consistent hashing.
 			 *
 			 * #### Example:
 			 * @code
-			 * 
+			 *
 			 * # Connect to the default host (127.0.0.1) and port (6379)
-			 * 
+			 *
 			 * $redis = new Predis\Client();
-			 * 
-			 * # Connect to a server using parameters
-			 * 
+			 *
+			 * # Connect to a server using parameters.
+			 *
 			 * $redis = new Predis\Client(array(
-			 *    'host' => '10.0.0.1', 
-			 *    'port' => 6380, 
+			 *    'host' => '10.0.0.1',
+			 *    'port' => 6380,
 			 * ));
 			 *
 			 * # or
 			 *
 			 * $redis = new Predis\Client('redis://10.0.0.1:6380/');
-			 * 
-			 * # Automatically perform authentication and database selection 
-			 * # when connecting
+			 *
+			 * # Automatically perform authentication and database selection
+			 * # when connecting.
 			 *
 			 * $redis = new Predis\Client(array(
-			 *    'host'     => '10.0.0.1', 
-			 *    'password' => 'secret', 
-			 *    'database' => 10, 
+			 *    'host'     => '10.0.0.1',
+			 *    'password' => 'secret',
+			 *    'database' => 10,
 			 * ));
 			 *
 			 * # or
 			 *
 			 * $redis = new Predis\Client(
 			 *     'redis://10.0.0.1/?password=secret&database=10');
-			 * 
+			 *
 			 * @endcode
 			 */
 			$cstr = 'redis:';
@@ -147,14 +150,14 @@ class RedisConn {
 				$cstr = sprintf("%s:", $this->redisscheme);
 			$cstr .= sprintf("//%s/", $this->redishost);
 			$qry = [];
-			if ($this->redispass) 
+			if ($this->redispass)
 				$qry['password'] = $this->redispass;
 
 			if ($this->redisdb) {
 				$qry['database'] = $this->redisdb;
 			}
 			if ($this->redistimeout) {
-				$qry['timeout'] = $this->redistimeout;	
+				$qry['timeout'] = $this->redistimeout;
 			}
 			$qrystr = http_build_query($qry);
 			$this->connection_string = $cstr . '?' . $qrystr;
@@ -171,7 +174,8 @@ class RedisConn {
 				if (!$this->redistimeout)
 					$this->redistimeout = 5;
 				$this->connection->connect(
-					$this->redishost, $this->redisport, $this->redistimeout);
+					$this->redishost, $this->redisport,
+					$this->redistimeout);
 			}
 			self::$logger->debug(sprintf(
 				"Redis: connection opened: '%s'.",
@@ -186,26 +190,25 @@ class RedisConn {
 	}
 
 	/**
-	 * # set
-	 * 
-	 * Set the string value in argument as value of the key. 
-	 * If you're using Redis >= 2.6.12, you can pass extended options 
-	 * as explained below
+	 * set
 	 *
-	 * @param string $key key of the value
-	 * @param string $val value of the key
-	 * @param mixed Timeout or Options Array (optional). If you pass 
-	 *    an integer, phpredis will redirect to SETEX, and will try to 
+	 * Set the string value in argument as value of the key. If you're
+	 * using Redis >= 2.6.12, you can pass extended options as explained
+	 * below.
+	 *
+	 * @param string $key Key.
+	 * @param string $val Value.
+	 * @param mixed Timeout or Options Array (optional). If you pass an
+	 *    integer, phpredis will redirect to SETEX, and will try to
 	 *    use Redis >= 2.6.12 extended options if you pass an array with
-	 *    valid values
-	 * @return bool TRUE if the command is successful
+	 *    valid values.
+	 * @return bool True if the command is successful.
 	 */
 	final public function set($key, $value, $options=null) {
-		if ($this->redistype == 'redis') 
-			$res = $this->connection->set($key, $value, $options);
-		else 
-			$res = $this->connection->set($key, $value);
-		$res_log = (!$res) ? 'not ok':'ok';
+		$res = $this->redistype == 'redis'
+			? $this->connection->set($key, $value, $options)
+			: $this->connection->set($key, $value);
+		$res_log = !$res ? 'not ok':'ok';
 		self::$logger->info(sprintf(
 			"Redis: set %s: %s -> '%s'.",
 			$res_log, $key, $value));
@@ -213,16 +216,16 @@ class RedisConn {
 	}
 
 	/**
-	 * # hset
+	 * hset
 	 *
 	 * Adds a value to the hash stored at key.
 	 *
-	 * @param string $key
-	 * @param string $hkey
-	 * @param string $value
-	 * @return long 1 if value didn't exist and was added successfully, 
-	 *     0 if the value was already present and was replaced, 
-	 *     FALSE if there was an error.
+	 * @param string $key Key.
+	 * @param string $hkey Hash key.
+	 * @param string $value Value.
+	 * @return long 1 if value didn't exist and was added successfully,
+	 *     0 if the value was already present and was replaced, false
+	 *     on error.
 	 */
 	final public function hset($key, $hkey, $value) {
 		$method = 'hSet';
@@ -238,12 +241,12 @@ class RedisConn {
 	}
 
 	/**
-	 * # del
+	 * del
 	 *
 	 * Remove specified keys.
-	 * 
-	 * @param array $key An array of keys, or an undefined number of parameters, 
-	 *     each a key: key1 key2 key3 ... keyN
+	 *
+	 * @param array $key An array of keys, or an undefined number of
+	 *     parameters, each a key: key1 key2 key3 ... keyN.
 	 * @return long Number of keys deleted.
 	 */
 	final public function del($key) {
@@ -259,13 +262,13 @@ class RedisConn {
 	}
 
 	/**
-	 * # expire
+	 * expire
 	 *
-	 * Sets an expiration date (a timeout) on an item. 
-	 * 
+	 * Sets an expiration date (a timeout) on an item.
+	 *
 	 * @param string $key The key that will disappear.
 	 * @param integer $ttl The key's remaining Time To Live, in seconds.
-	 * @return bool TRUE in case of success, FALSE in case of failure.
+	 * @return bool True on success, false otherwise.
 	 */
 	final public function expire($key, $ttl) {
 		$method = 'setTimeout';
@@ -279,14 +282,14 @@ class RedisConn {
 	}
 
 	/**
-	 * # expireat
-	 * 
-	 * Sets an expiration date (a timestamp) on an item. 
+	 * expireat
+	 *
+	 * Sets an expiration timestamp on an item.
 	 *
 	 * @param string $key The key that will disappear.
-	 * @param integer $ttl Unix timestamp. The key's date of death, 
-	 *     in seconds from Epoch time.
-	 * @return bool TRUE in case of success, FALSE in case of failure.
+	 * @param integer $ttl Unix timestamp. The key's date of death, in
+	 *     seconds after Unix epoch.
+	 * @return bool True on suceess, false otherwise.
 	 */
 	final public function expireat($key, $ttl) {
 		$method = 'expireAt';
@@ -300,12 +303,12 @@ class RedisConn {
 	}
 
 	/**
-	 * # get
-	 * 
-	 * Get the value related to the specified key
-	 * 
-	 * @param string $key 
-	 * @return string or bool: If key didn't exist, FALSE is returned. 
+	 * get
+	 *
+	 * Get the value related to the specified key.
+	 *
+	 * @param string $key Key.
+	 * @return string|bool If key doesn't exist, false is returned.
 	 *     Otherwise, the value related to this key is returned.
 	 */
 	final public function get($key) {
@@ -320,15 +323,15 @@ class RedisConn {
 	}
 
 	/**
-	 * # hget
+	 * hget
 	 *
-	 * Gets a value from the hash stored at key. If the hash table 
-	 * doesn't exist, or the key doesn't exist, FALSE is returned.
+	 * Get a value from the hash stored at key. If the hash table or
+	 * the key doesn't exist, false is returned.
 	 *
-	 * @param string $key 
-	 * @param string $hkey
-	 * @return string The value, if the command executed successfully 
-	 *     BOOL FALSE in case of failure
+	 * @param string $key Key.
+	 * @param string $hkey Hash key.
+	 * @return string The value, if the command executed successfully.
+	 *     False otherwise.
 	 */
 	final public function hget($key, $hkey=null) {
 		$method = 'hGet';
@@ -342,12 +345,12 @@ class RedisConn {
 	}
 
 	/**
-	 * # ttl
-	 * 
-	 * Returns the time to live left for a given key in seconds (ttl)
+	 * ttl
+	 *
+	 * Returns the time to live left for a given key in seconds.
 	 *
 	 * @param string $key
-	 * @return long The time to live in seconds. If the key has no ttl, 
+	 * @return long The time to live in seconds. If the key has no ttl,
 	 *     -1 will be returned, and -2 if the key doesn't exist.
 	 */
 	final public function ttl($key) {
@@ -395,3 +398,4 @@ class RedisConn {
 		return $this->verified_params;
 	}
 }
+
