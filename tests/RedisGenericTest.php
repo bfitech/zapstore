@@ -21,6 +21,22 @@ class RedisGenericTest extends TestCase {
 		self::$logger = new Logger(Logger::DEBUG, $logfile);
 	}
 
+	public function test_constructor() {
+		$args = [
+			'redistype' => 'redis',
+			'redishost' => '127.0.0.1',
+			'redisport' => '6379'
+		];
+		try {
+			$redis = new ZapRedis($args, self::$logger);
+			$redis->close();
+			$this->assertEquals($redis->get_connection(), null);
+		} catch(ZapRedisErr $e) {
+			$this->assertEquals($e->code,
+				ZapRedisErr::CONNECTION_ERROR);
+		}
+	}
+
 	public function test_exception() {
 		$args = [
 			'redisscheme' => 'tcp',

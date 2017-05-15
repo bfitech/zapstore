@@ -142,20 +142,16 @@ class RedisTest extends TestCase {
 		$this->loopredis(function($redis, $redistype){
 			$redis->set('key1', 'val1');
 			$redis->expire('key1', 3);
+
+			$redis->set('key2', 'val2');
+			$redis->expireat('key2', time() + 2);
 			sleep(3);
 			$ret = $redis->get('key1'); /* return false */
+			$this->assertEquals($ret, false);
+
+			$ret = $redis->get('key2'); /* return false */
 			$this->assertEquals($ret, false);
 		});		
-	}
-
-	public function test_expireat() {
-		$this->loopredis(function($redis, $redistype){
-			$redis->set('key1', 'val1');
-			$redis->expireat('key1', time() + 2);
-			sleep(3);
-			$ret = $redis->get('key1'); /* return false */
-			$this->assertEquals($ret, false);
-		});	
 	}
 
 	public function test_get() {
