@@ -162,7 +162,7 @@ class Redis {
 
 		try {
 			if ($this->redistype == 'predis') {
-				$this->connection = new \Predis\CLient(
+				$this->connection = new \Predis\Client(
 					$this->connection_string);
 			} else {
 				$this->connection = new \Redis();
