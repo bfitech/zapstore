@@ -3,7 +3,7 @@
 
 use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger as Logger;
-use BFITech\ZapStore\Redis as ZapRedis;
+use BFITech\ZapStore\RedisConn as ZapRedis;
 use BFITech\ZapStore\RedisError as ZapRedisErr;
 
 /**
@@ -12,7 +12,7 @@ use BFITech\ZapStore\RedisError as ZapRedisErr;
  * This assumes all supported database drivers are installed.
  * Do not subclass this in redis-specific packages.
  */
-class RedisGenericTest extends TestCase {
+class RedisConnGenericTest extends TestCase {
 
 	public static $logger;
 

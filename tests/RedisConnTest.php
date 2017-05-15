@@ -2,7 +2,7 @@
 
 use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger as Logger;
-use BFITech\ZapStore\Redis as ZapRedis;
+use BFITech\ZapStore\RedisConn as ZapRedis;
 use BFITech\ZapStore\RedisError as ZapRedisErr;
 
 use Predis\Response\Status as ResponseStatus;
@@ -17,7 +17,7 @@ use Predis\Response\Status as ResponseStatus;
  * run. Such change must also be reflected on composer 'require'
  * directive.
  */
-class RedisTest extends TestCase {
+class RedisConnTest extends TestCase {
 	public static $args = [];
 	public static $redis = [];
 	public static $config_file = null;

@@ -35,7 +35,7 @@ class RedisError extends \Exception {
 /**
  * Redis class
  */
-class Redis {
+class RedisConn {
 
 	private $redistype = null;
 	private $redishost = null;
