@@ -11,6 +11,9 @@ services:
     - mysql
     - redis-server
 
+before_install:
+    - echo "extension=redis.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
+
 before_script:
     - createdb -Upostgres -EUTF-8 -Ttemplate0 zapstore_test_db
     - mysql -e 'CREATE DATABASE zapstore_test_db'
