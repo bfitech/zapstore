@@ -9,6 +9,7 @@ php:
 services:
     - postgresql
     - mysql
+    - redis-server
 
 before_script:
     - createdb -Upostgres -EUTF-8 -Ttemplate0 zapstore_test_db
