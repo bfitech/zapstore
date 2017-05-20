@@ -69,10 +69,11 @@ class RedisConn {
 		self::$logger->debug("Redis: object instantiated.");
 
 		$verified_params = [];
-		foreach ([
+		$propkeys = [
 			'redistype', 'redisscheme', 'redishost', 'redisport',
 			'redispassword', 'redisdatabase', 'redistimeout',
-		] as $key) {
+		];
+		foreach ($propkeys as $key) {
 			if (!isset($params[$key]))
 				continue;
 			$this->$key = $params[$key];
@@ -81,13 +82,13 @@ class RedisConn {
 		$this->verified_params = $verified_params;
 
 		foreach (['redistype', 'redishost'] as $key) {
-			if (!$this->$key) {
-				self::$logger->error(sprintf(
-					"Redis: param not supplied: '%s'.", $key));
-				throw new RedisError(
-					RedisError::CONNECTION_ARGS_ERROR,
-					sprintf("'%s' not supplied.", $key));
-			}
+			if ($this->$key)
+				continue;
+			self::$logger->error(sprintf(
+				"Redis: param not supplied: '%s'.", $key));
+			throw new RedisError(
+				RedisError::CONNECTION_ARGS_ERROR,
+				sprintf("'%s' not supplied.", $key));
 		}
 
 		if (!in_array($this->redistype, ['redis', 'predis'])) {
@@ -100,14 +101,10 @@ class RedisConn {
 
 		if ($this->redistype == 'predis') {
 			$args = [];
-			foreach ([
-				'scheme', 'host', 'port', 'database',
-				'password', 'timeout',
-			] as $key) {
-				$rkey = 'redis' . $key;
-				if (!$this->$rkey)
+			foreach ($propkeys as $key) {
+				if ($key == 'redistype' || !$this->$key)
 					continue;
-				$args[$key] = $this->$rkey;
+				$args[substr($key, 5)] = $this->$key;
 			}
 			try {
 				$this->connection = new \Predis\Client($args);
