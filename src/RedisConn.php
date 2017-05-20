@@ -77,7 +77,6 @@ class RedisConn {
 			$this->$key = $params[$key];
 			$verified_params[$key] = $params[$key];
 		}
-
 		$this->verified_params = $verified_params;
 
 		foreach (['redistype', 'redishost'] as $key) {
@@ -112,10 +111,10 @@ class RedisConn {
 			try {
 				$this->connection = new \Predis\Client($args);
 				$this->connection->ping();
+				return $this->connection_open_ok();
 			} catch(\Predis\Connection\ConnectionException $e) {
 				return $this->connection_open_fail($e->getMessage());
 			}
-			return $this->connection_open_ok();
 		}
 
 		$this->connection = new \Redis();
@@ -126,13 +125,16 @@ class RedisConn {
 			$this->redistimeout
 		))
 			return $this->connection_open_fail();
-		if ($this->redispassword) {
-			try {
+		if ($this->redispassword || $this->redisdatabase) {
+			if ($this->redispassword)
 				$this->connection->auth($this->redispassword);
-				$this->connection->ping();
-			} catch(\RedisException $e) {
-				return $this->connection_open_fail($e->getMessage());
-			}
+			if ($this->redisdatabase)
+				$this->connection->select($this->redisdatabase);
+		}
+		try {
+			$this->connection->ping();
+		} catch(\RedisException $e) {
+			return $this->connection_open_fail($e->getMessage());
 		}
 		$this->connection_open_ok();
 	}

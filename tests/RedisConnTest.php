@@ -42,11 +42,13 @@ class RedisConnTest extends TestCase {
 				'redistype' => 'redis',
 				'redishost' => '127.0.0.1',
 				'redisport' => '6379',
+				'redispassword' => 'xoxo',
 			],
 			'predis' => [
 				'redistype' => 'predis',
 				'redishost' => '127.0.0.1',
 				'redisport' => '6379',
+				'redispassword' => 'xoxo',
 			],
 		];
 		if (static::$engine) {
