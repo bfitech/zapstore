@@ -282,22 +282,6 @@ class SQL {
 	}
 
 	/**
-	 * Merge log into single line.
-	 *
-	 * This will convert certain whitespaces into their symbolic
-	 * representations.
-	 */
-	private function one_line($lines) {
-		$lines = trim($lines);
-		$lines = str_replace([
-			"\t", "\n", "\r",
-		], [
-			" ", '\n', '\r',
-		], $lines);
-		return preg_replace('! +!', ' ', $lines);
-	}
-
-	/**
 	 * Prepare and execute statement.
 	 */
 	private function prepare_statement($stmt, $args=[]) {
@@ -315,8 +299,8 @@ class SQL {
 		} catch (\PDOException $e) {
 			self::$logger->error(sprintf(
 				"SQL: execution failed: %s <- '%s': %s.",
-				$this->one_line($stmt), json_encode($args),
-				$this->one_line($e->getMessage())));
+				$stmt, json_encode($args),
+				$e->getMessage()));
 			throw new SQLError(
 				SQLError::EXECUTION_ERROR,
 				sprintf("Execution error: %s.", $e->getMessage()),
@@ -329,8 +313,8 @@ class SQL {
 		} catch (\PDOException $e) {
 			self::$logger->error(sprintf(
 				"SQL: execution failed: %s <- '%s': %s.",
-				$this->one_line($stmt), json_encode($args),
-				$this->one_line($e->getMessage())));
+				$stmt, json_encode($args),
+				$e->getMessage()));
 			throw new SQLError(
 				SQLError::EXECUTION_ERROR,
 				sprintf("Execution error: %s.", $e->getMessage()),
@@ -359,7 +343,7 @@ class SQL {
 			: $pstmt->fetch(\PDO::FETCH_ASSOC);
 		self::$logger->info(sprintf(
 			"SQL: query ok: %s <- '%s'.",
-			$this->one_line($stmt), json_encode($args)));
+			$stmt, json_encode($args)));
 		return $res;
 	}
 
@@ -387,8 +371,7 @@ class SQL {
 	final public function query_raw($stmt, $args=[]){
 		$pstmt = $this->prepare_statement($stmt, $args);
 		self::$logger->info(sprintf(
-			"SQL: query raw ok: %s.",
-			$this->one_line($stmt)));
+			"SQL: query raw ok: %s.", $stmt));
 		return $pstmt;
 	}
 
@@ -430,7 +413,7 @@ class SQL {
 
 		self::$logger->info(sprintf(
 			"SQL: insert ok: %s <- '%s'.",
-			$this->one_line($stmt), json_encode($args)));
+			$stmt, json_encode($args)));
 		return $ret;
 	}
 
@@ -463,7 +446,7 @@ class SQL {
 
 		self::$logger->info(sprintf(
 			"SQL: update ok: %s <- '%s'.",
-			$this->one_line($stmt), json_encode($args)));
+			$stmt, json_encode($args)));
 
 		$this->prepare_statement($stmt, $params);
 	}
@@ -488,7 +471,7 @@ class SQL {
 
 		self::$logger->info(sprintf(
 			"SQL: delete ok: %s <- '%s'.",
-			$this->one_line($stmt), json_encode($where)));
+			$stmt, json_encode($where)));
 
 		$this->prepare_statement($stmt, $params);
 	}
