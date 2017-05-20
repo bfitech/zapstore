@@ -36,8 +36,9 @@ class RedisError extends \Exception {
 	}
 }
 
+
 /**
- * Redis class
+ * RedisConn class.
  */
 class RedisConn {
 
@@ -139,6 +140,9 @@ class RedisConn {
 		$this->connection_open_ok();
 	}
 
+	/**
+	 * Throw exception on failing connection.
+	 */
 	private function connection_open_fail($msg='') {
 		$logline = sprintf('Redis: %s connection failed',
 			$this->redistype);
@@ -150,6 +154,9 @@ class RedisConn {
 			$logline);
 	}
 
+	/**
+	 * Log on successful connection.
+	 */
 	private function connection_open_ok() {
 		self::$logger->info(sprintf(
 			"Redis: connection opened. <- '%s'.",
@@ -197,10 +204,7 @@ class RedisConn {
 	 *     false on error.
 	 */
 	final public function hset($key, $hkey, $value) {
-		$method = 'hSet';
-		if ($this->redistype == 'predis')
-			$function = strtolower($method);
-		$res = $this->connection->$method($key, $hkey, $value);
+		$res = $this->connection->hset($key, $hkey, $value);
 		$res_log = $res === false ? 'fail' : 'ok';
 		self::$logger->info(sprintf(
 			"Redis: hset %s: %s.%s -> '%s'.",
@@ -261,10 +265,7 @@ class RedisConn {
 	 * @return bool True on suceess, false otherwise.
 	 */
 	final public function expireat($key, $ttl) {
-		$method = 'expireAt';
-		if ($this->redistype == 'predis')
-			$method = strtolower($method);
-		$res = $this->connection->$method($key, $ttl);
+		$res = $this->connection->expireat($key, $ttl);
 		self::$logger->info(sprintf(
 			"Redis: expireat %s: %s.", $key, $ttl));
 		return $res;
@@ -300,13 +301,9 @@ class RedisConn {
 	 *     False otherwise.
 	 */
 	final public function hget($key, $hkey=null) {
-		$method = 'hGet';
-		if ($this->redistype == 'predis')
-			$method = strtolower($method);
-		$res = $this->connection->$method($key, $hkey);
+		$res = $this->connection->hget($key, $hkey);
 		self::$logger->info(sprintf(
-			"Redis: hget %s.%s: '%s'.",
-			$key, $hkey, $res));
+			"Redis: hget %s.%s: '%s'.", $key, $hkey, $res));
 		return $res;
 	}
 
@@ -359,8 +356,8 @@ class RedisConn {
 	/**
 	 * Retrieve connection.
 	 *
-	 * Useful for checking whether connection is open and other
-	 * things, e.g. creating custom functions.
+	 * Use this to do anything with the connection without the help of
+	 * the wrappers this class provides.
 	 */
 	public function get_connection() {
 		return $this->connection;
