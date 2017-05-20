@@ -11,6 +11,7 @@ use BFITech\ZapCore\Logger as Logger;
  * Redis exception class.
  */
 class RedisError extends \Exception {
+
 	/** Library not supported. */
 	const REDISTYPE_ERROR = 0x10;
 	/** Connection arguments invalid. */
@@ -51,7 +52,6 @@ class RedisConn {
 	private $verified_params = null;
 
 	private $connection = null;
-	private $connection_string = '';
 
 	/** Logging service. */
 	public static $logger = null;
@@ -63,8 +63,8 @@ class RedisConn {
 	 * @param Logger $logger Instance of BFITech\\ZapCore\\Logger.
 	 */
 	public function __construct($params, Logger $logger=null) {
-		self::$logger = $logger instanceof Logger
-			? $logger : new Logger();
+
+		self::$logger = $logger ? $logger : new Logger();
 		self::$logger->debug("Redis: object instantiated.");
 
 		$verified_params = [];
@@ -77,6 +77,11 @@ class RedisConn {
 			$this->$key = $params[$key];
 			$verified_params[$key] = $params[$key];
 		}
+
+		if (!$this->redisport)
+			$this->redisport = 6379;
+		if (!$this->redistimeout)
+			$this->redistimeout = 5;
 		$this->verified_params = $verified_params;
 
 		foreach (['redistype', 'redishost'] as $key) {
@@ -98,95 +103,44 @@ class RedisConn {
 		}
 
 		if ($this->redistype == 'predis') {
-			/**
-			 * # Connecting to a server
-			 *
-			 * Predis offers various means to connect to a single server
-			 * or a cluster of servers. By specifying two or more servers,
-			 * Predis automatically switches over a clustered connection
-			 * that transparently handles client-side sharding over multiple
-			 * connections. It should be noted that clustered connections
-			 * have a little more overhead when compared to single connections
-			 * (that is, when Predis is connected only to a single server)
-			 * due to a more complex internal structure needed to support
-			 * consistent hashing.
-			 *
-			 * #### Example:
-			 * @code
-			 *
-			 * # Connect to the default host (127.0.0.1) and port (6379)
-			 *
-			 * $redis = new Predis\Client();
-			 *
-			 * # Connect to a server using parameters.
-			 *
-			 * $redis = new Predis\Client(array(
-			 *    'host' => '10.0.0.1',
-			 *    'port' => 6380,
-			 * ));
-			 *
-			 * # or
-			 *
-			 * $redis = new Predis\Client('redis://10.0.0.1:6380/');
-			 *
-			 * # Automatically perform authentication and database selection
-			 * # when connecting.
-			 *
-			 * $redis = new Predis\Client(array(
-			 *    'host'     => '10.0.0.1',
-			 *    'password' => 'secret',
-			 *    'database' => 10,
-			 * ));
-			 *
-			 * # or
-			 *
-			 * $redis = new Predis\Client(
-			 *     'redis://10.0.0.1/?password=secret&database=10');
-			 *
-			 * @endcode
-			 */
-			$cstr = 'redis:';
-			if ($this->redisscheme)
-				$cstr = sprintf("%s:", $this->redisscheme);
-			$cstr .= sprintf("//%s/", $this->redishost);
-			$qry = [];
+			$args = [];
 			if ($this->redispass)
-				$qry['password'] = $this->redispass;
-
-			if ($this->redisdb) {
-				$qry['database'] = $this->redisdb;
+				$args['password'] = $this->redispass;
+			if ($this->redisdb)
+				$args['database'] = $this->redisdb;
+			if ($this->redistimeout)
+				$args['timeout'] = $this->redistimeout;
+			try {
+				$this->connection = new \Predis\Client($args);
+				$this->connection->ping();
+			} catch(\Exception $e) {
+				// @fixme: Too many kinds of exception thrown.
+				return $this->connection_open_fail();
 			}
-			if ($this->redistimeout) {
-				$qry['timeout'] = $this->redistimeout;
-			}
-			$qrystr = http_build_query($qry);
-			$this->connection_string = $cstr . '?' . $qrystr;
+			return $this->connection_open_ok();
 		}
 
-		try {
-			if ($this->redistype == 'predis') {
-				$this->connection = new \Predis\Client(
-					$this->connection_string);
-			} else {
-				$this->connection = new \Redis();
-				if (!$this->redisport)
-					$this->redisport = 6379;
-				if (!$this->redistimeout)
-					$this->redistimeout = 5;
-				$this->connection->connect(
-					$this->redishost, $this->redisport,
-					$this->redistimeout);
-			}
-			self::$logger->debug(sprintf(
-				"Redis: connection opened: '%s'.",
-				json_encode($this->verified_params)));
-		} catch (\RedisException $e) {
-			self::$logger->error(sprintf(
-				"Redis: connection failed: '%s'.",
-				json_encode($this->verified_params)));
-			throw new RedisError(RedisError::CONNECTION_ERROR,
-				$this->dbtype . " connection error.");
-		}
+		$this->connection = new \Redis();
+		if (!$this->connection->connect(
+			$this->redishost, $this->redisport,
+			$this->redistimeout)
+		)
+			return $this->connection_open_fail();
+		$this->connection_open_ok();
+	}
+
+	private function connection_open_fail() {
+		self::$logger->error(sprintf(
+			"Redis: connection failed: '%s'.",
+			json_encode($this->verified_params)));
+		throw new RedisError(RedisError::CONNECTION_ERROR,
+			$this->redistype . " connection error.");
+	}
+
+	private function connection_open_ok() {
+		self::$logger->info(sprintf(
+			"Redis: connection opened: '%s'.",
+			json_encode($this->verified_params)));
 	}
 
 	/**
@@ -197,18 +151,20 @@ class RedisConn {
 	 * below.
 	 *
 	 * @param string $key Key.
-	 * @param string $val Value.
-	 * @param mixed Timeout or Options Array (optional). If you pass an
-	 *    integer, phpredis will redirect to SETEX, and will try to
-	 *    use Redis >= 2.6.12 extended options if you pass an array with
-	 *    valid values.
+	 * @param string $value Value.
+	 * @param mixed $options Expiration or phpredis options array. If
+	 *     you pass an integer, phpredis will redirect to SETEX and set
+	 *     the expiration. If you pass an array, it will try to use
+	 *     Redis >= 2.6.12 extended options if value is valid. This is
+	 *     ignored if you're using Predis.
+	 *     @see https://git.io/vHJhl.
 	 * @return bool True if the command is successful.
 	 */
 	final public function set($key, $value, $options=null) {
 		$res = $this->redistype == 'redis'
 			? $this->connection->set($key, $value, $options)
 			: $this->connection->set($key, $value);
-		$res_log = !$res ? 'not ok':'ok';
+		$res_log = $res ? 'ok': 'fail';
 		self::$logger->info(sprintf(
 			"Redis: set %s: %s -> '%s'.",
 			$res_log, $key, $value));
@@ -218,23 +174,23 @@ class RedisConn {
 	/**
 	 * hset
 	 *
-	 * Adds a value to the hash stored at key.
+	 * Add a value to the hash stored at a key.
 	 *
 	 * @param string $key Key.
 	 * @param string $hkey Hash key.
 	 * @param string $value Value.
-	 * @return long 1 if value didn't exist and was added successfully,
-	 *     0 if the value was already present and was replaced, false
-	 *     on error.
+	 * @return long 1 if old value doesn't exist and new value is added
+	 *     successfully, 0 if the value is already present and replaced,
+	 *     false on error.
 	 */
 	final public function hset($key, $hkey, $value) {
 		$method = 'hSet';
 		if ($this->redistype == 'predis')
 			$function = strtolower($method);
 		$res = $this->connection->$method($key, $hkey, $value);
-		$res_log = ($res === false) ? 'not ok':'ok';
+		$res_log = $res === false ? 'fail' : 'ok';
 		self::$logger->info(sprintf(
-			"Redis: hset %s: %s, %s, '%s'.",
+			"Redis: hset %s: %s.%s -> '%s'.",
 			$res_log, $key, $hkey, $value));
 		return $res;
 
@@ -245,19 +201,20 @@ class RedisConn {
 	 *
 	 * Remove specified keys.
 	 *
-	 * @param array $key An array of keys, or an undefined number of
-	 *     parameters, each a key: key1 key2 key3 ... keyN.
+	 * @param array $keys An array of keys, or variadic parameters,
+	 *     each corresponding to a Redis key.
 	 * @return long Number of keys deleted.
 	 */
-	final public function del($key) {
-		$res = $this->connection->del($key);
-		$res_log = (!$res) ? 'not ok':'ok';
-		$res_key = $key;
-		if (is_array($key))
-			$res_key = json_encode($key);
+	final public function del($keys) {
+		$res = $this->connection->del($keys);
+		$res_log = $res ? 'ok' : 'fail';
+		$res_keys = $keys;
+		if (!is_array($keys))
+			$keys = func_get_args();
+		$res_keys = json_encode($keys);
 		self::$logger->info(sprintf(
-			"Redis: delete %s: %s.",
-			$res_log, $res_key));
+			"Redis: delete %s: '%s'.",
+			$res_log, $res_keys));
 		return $res;
 	}
 
@@ -267,7 +224,7 @@ class RedisConn {
 	 * Sets an expiration date (a timeout) on an item.
 	 *
 	 * @param string $key The key that will disappear.
-	 * @param integer $ttl The key's remaining Time To Live, in seconds.
+	 * @param integer $ttl The key's remaining ttl, in seconds.
 	 * @return bool True on success, false otherwise.
 	 */
 	final public function expire($key, $ttl) {
@@ -276,15 +233,14 @@ class RedisConn {
 			$method = 'expire';
 		$res = $this->connection->$method($key, $ttl);
 		self::$logger->info(sprintf(
-			"Redis: expire %s: %s.",
-			$key, $ttl));
+			"Redis: expire %s: %s.", $key, $ttl));
 		return $res;
 	}
 
 	/**
 	 * expireat
 	 *
-	 * Sets an expiration timestamp on an item.
+	 * Sets an expiration timestamp of an item.
 	 *
 	 * @param string $key The key that will disappear.
 	 * @param integer $ttl Unix timestamp. The key's date of death, in
@@ -297,8 +253,7 @@ class RedisConn {
 			$method = strtolower($method);
 		$res = $this->connection->$method($key, $ttl);
 		self::$logger->info(sprintf(
-			"Redis: %s expire at: %s.",
-			$key, $ttl));
+			"Redis: expireat %s: %s.", $key, $ttl));
 		return $res;
 	}
 
@@ -314,11 +269,9 @@ class RedisConn {
 	final public function get($key) {
 		$res = $this->connection->get($key);
 		self::$logger->info(sprintf(
-			"Redis: get value of %s: %s.",
-			$key, $res));
-		if ($this->redistype == 'predis')
-			if($res == null)
-				$res = false;
+			"Redis: get %s: '%s'.", $key, $res));
+		if ($this->redistype == 'predis' && $res == null)
+			$res = false;
 		return $res;
 	}
 
@@ -339,7 +292,7 @@ class RedisConn {
 			$method = strtolower($method);
 		$res = $this->connection->$method($key, $hkey);
 		self::$logger->info(sprintf(
-			"Redis: hget %s, %s: %s.",
+			"Redis: hget %s.%s: '%s'.",
 			$key, $hkey, $res));
 		return $res;
 	}
@@ -347,7 +300,7 @@ class RedisConn {
 	/**
 	 * ttl
 	 *
-	 * Returns the time to live left for a given key in seconds.
+	 * Get ttl of a given key, in seconds.
 	 *
 	 * @param string $key
 	 * @return long The time to live in seconds. If the key has no ttl,
@@ -356,17 +309,35 @@ class RedisConn {
 	final public function ttl($key) {
 		$res = $this->connection->ttl($key);
 		self::$logger->info(sprintf(
-			"Redis: ttl %s: %s.",
-			$key, $res));
+			"Redis: ttl %s: %s.", $key, $res));
 		return $res;
+	}
+
+	/**
+	 * time
+	 *
+	 * Get Redis server time. Always use server time as a reference to
+	 * do RedisConn::expireat in case of PHP interpreter's or Redis
+	 * server's clock not being properly synched.
+	 *
+	 * @param bool $with_mcs If true, returned time includes microsecond
+	 *     fraction.
+	 * @return int|float Redis server time in Unix epoch.
+	 */
+	final public function time($with_mcs=false) {
+		$time = $this->connection->time();
+		if (!$with_mcs)
+			return $time[0];
+		return $time[0] + ($time[1] / 1e6);
 	}
 
 	/**
 	 * Close connection.
 	 */
 	public function close() {
+		if ($this->redistype == 'redis')
+			$this->connection->close();
 		$this->connection = null;
-		$this->connection_string = '';
 		$this->verified_params = null;
 	}
 
@@ -380,15 +351,6 @@ class RedisConn {
 	 */
 	public function get_connection() {
 		return $this->connection;
-	}
-
-	/**
-	 * Retrieve formatted connection string.
-	 *
-	 * Use this, e.g. for redis connection in predis.
-	 */
-	public function get_connection_string() {
-		return $this->connection_string;
 	}
 
 	/**

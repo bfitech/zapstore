@@ -85,18 +85,22 @@ class RedisConnTest extends TestCase {
 
 	public static function tearDownAfterClass() {}
 
+	public function tearDown() {
+		$this->loopredis(function($redis, $redistype){
+			$redis->get_connection()->flushDb();
+		});
+	}
+
 	private function loopredis($fn) {
-		foreach (self::$args as $redistype => $_) {
+		foreach (array_keys(self::$args) as $redistype) {
 			$fn(self::$redis[$redistype], $redistype);
 			$this->assertEquals(
 				self::$redis[$redistype]->get_connection_params(),
 				self::$args[$redistype]);
 
-			if ($redistype == 'predis') {
-				$key_test = substr($redistype, 0, 5);
-				$cstr = self::$redis[$redistype]->get_connection_string();
-				$this->assertEquals(strpos($cstr, $key_test), 0);
-			}
+			$args = self::$redis[$redistype]
+				->get_connection_params();
+			$this->assertEquals($args['redistype'], $redistype);
 		}
 	}
 
@@ -104,19 +108,22 @@ class RedisConnTest extends TestCase {
 		$this->loopredis(function($redis, $redistype){
 			$conn = $redis->get_connection();
 			if ($redistype == 'redis')
-				$this->assertEquals(($conn instanceof \Redis), true);
+				$this->assertEquals($conn instanceof \Redis, true);
 			if ($redistype == 'predis')
-				$this->assertEquals(($conn instanceof \Predis\Client), true);
+				$this->assertEquals($conn instanceof \Predis\Client,
+					true);
 		});
 	}
 
 	public function test_set() {
 		$this->loopredis(function($redis, $redistype){
 			if ($redistype == 'redis')
-				$this->assertEquals($redis->set('myvalue', 'hello'), true);
+				$this->assertEquals(
+					$redis->set('myvalue', 'hello'), true);
 			if ($redistype == 'predis') {
 				$response = $redis->set('myvalue', 'hello');
-				$this->assertEquals($response::get('OK'), ResponseStatus::get('OK'));
+				$this->assertEquals($response::get('OK'),
+					ResponseStatus::get('OK'));
 			}
 		});
 	}
@@ -134,7 +141,10 @@ class RedisConnTest extends TestCase {
 		$this->loopredis(function($redis, $redistype){
 			$redis->set('key1', 'val1');
 			$redis->set('key2', 'val2');
-			$ret = $redis->del(['key1', 'key2']); /* return 2 */
+			$redis->set('key3', 'val3');
+			$redis->set('key4', 'val4');
+			$ret = $redis->del(['key1', 'key2']);
+			# returns number of deleted keys
 			$this->assertEquals($ret, 2);
 		});
 	}
@@ -142,15 +152,16 @@ class RedisConnTest extends TestCase {
 	public function test_expire() {
 		$this->loopredis(function($redis, $redistype){
 			$redis->set('key1', 'val1');
-			$redis->expire('key1', 3);
-
-			$redis->set('key2', 'val2');
-			$redis->expireat('key2', time() + 2);
-			sleep(3);
-			$ret = $redis->get('key1'); /* return false */
+			# set expire in the past
+			$redis->expire('key1', -3);
+			$ret = $redis->get('key1');
 			$this->assertEquals($ret, false);
 
-			$ret = $redis->get('key2'); /* return false */
+			$redis->set('key2', 'val2');
+			# set expireat in the past
+			$time = $redis->time() - 3;
+			$redis->expireat('key2', $time);
+			$ret = $redis->get('key2');
 			$this->assertEquals($ret, false);
 		});
 	}
@@ -178,7 +189,8 @@ class RedisConnTest extends TestCase {
 	public function test_ttl() {
 		$this->loopredis(function($redis, $redistype){
 			$redis->set('key1', 'val1');
-			$expire = time() + 10;
+			$time = $redis->time(true);
+			$expire = intval($time) + 10;
 			$redis->expireat('key1', $expire);
 			$ttl = $redis->ttl('key1');
 			$this->assertEquals(in_array($ttl, [9, 10]), true);
