@@ -71,7 +71,7 @@ class RedisConnTest extends TestCase {
 		foreach (self::$args as $key => $val) {
 			try {
 				self::$redis[$key] = new ZapRedis($val, self::$logger);
-			} catch(ZapRedisError $e) {
+			} catch(ZapRedisErr $e) {
 				printf(
 					"ERROR: Cannot connect to '%s' test database.\n\n" .
 					"- Check extensions for interpreter: %s.\n" .

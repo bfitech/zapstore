@@ -42,12 +42,12 @@ class RedisError extends \Exception {
 class RedisConn {
 
 	private $redistype = null;
-	private $redishost = null;
-	private $redisport = null;
-	private $redispass = null;
-	private $redisdb = null;
-	private $redisscheme = null;
-	private $redistimeout = null;
+	private $redisscheme = 'tcp';
+	private $redishost = 'localhost';
+	private $redisport = 6379;
+	private $redispassword = null;
+	private $redisdatabase = null;
+	private $redistimeout = 5;
 
 	private $verified_params = null;
 
@@ -69,8 +69,8 @@ class RedisConn {
 
 		$verified_params = [];
 		foreach ([
-			'redistype', 'redishost', 'redisport',
-			'redispass', 'redisdb', 'redisscheme', 'redistimeout',
+			'redistype', 'redisscheme', 'redishost', 'redisport',
+			'redispassword', 'redisdatabase', 'redistimeout',
 		] as $key) {
 			if (!isset($params[$key]))
 				continue;
@@ -78,10 +78,6 @@ class RedisConn {
 			$verified_params[$key] = $params[$key];
 		}
 
-		if (!$this->redisport)
-			$this->redisport = 6379;
-		if (!$this->redistimeout)
-			$this->redistimeout = 5;
 		$this->verified_params = $verified_params;
 
 		foreach (['redistype', 'redishost'] as $key) {
@@ -104,42 +100,57 @@ class RedisConn {
 
 		if ($this->redistype == 'predis') {
 			$args = [];
-			if ($this->redispass)
-				$args['password'] = $this->redispass;
-			if ($this->redisdb)
-				$args['database'] = $this->redisdb;
-			if ($this->redistimeout)
-				$args['timeout'] = $this->redistimeout;
+			foreach ([
+				'scheme', 'host', 'port', 'database',
+				'password', 'timeout',
+			] as $key) {
+				$rkey = 'redis' . $key;
+				if (!$this->$rkey)
+					continue;
+				$args[$key] = $this->$rkey;
+			}
 			try {
 				$this->connection = new \Predis\Client($args);
 				$this->connection->ping();
-			} catch(\Exception $e) {
-				// @fixme: Too many kinds of exception thrown.
-				return $this->connection_open_fail();
+			} catch(\Predis\Connection\ConnectionException $e) {
+				return $this->connection_open_fail($e->getMessage());
 			}
 			return $this->connection_open_ok();
 		}
 
 		$this->connection = new \Redis();
-		if (!$this->connection->connect(
+		# @note: This emits warning on failure instead of throwing
+		# exception, hence the @ sign.
+		if (!@$this->connection->connect(
 			$this->redishost, $this->redisport,
-			$this->redistimeout)
-		)
+			$this->redistimeout
+		))
 			return $this->connection_open_fail();
+		if ($this->redispassword) {
+			try {
+				$this->connection->auth($this->redispassword);
+				$this->connection->ping();
+			} catch(\RedisException $e) {
+				return $this->connection_open_fail($e->getMessage());
+			}
+		}
 		$this->connection_open_ok();
 	}
 
-	private function connection_open_fail() {
-		self::$logger->error(sprintf(
-			"Redis: connection failed: '%s'.",
-			json_encode($this->verified_params)));
+	private function connection_open_fail($msg='') {
+		$logline = sprintf('Redis: %s connection failed',
+			$this->redistype);
+		if ($msg)
+			$logline .= ': ' . $msg;
+		$logline .= ' <- ' . json_encode($this->verified_params);
+		self::$logger->error($logline);
 		throw new RedisError(RedisError::CONNECTION_ERROR,
-			$this->redistype . " connection error.");
+			$logline);
 	}
 
 	private function connection_open_ok() {
 		self::$logger->info(sprintf(
-			"Redis: connection opened: '%s'.",
+			"Redis: connection opened. <- '%s'.",
 			json_encode($this->verified_params)));
 	}
 

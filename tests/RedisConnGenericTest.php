@@ -40,12 +40,12 @@ class RedisConnGenericTest extends TestCase {
 
 	public function test_exception() {
 		$args = [
-			'redisscheme' => 'tcp',
 			'redistype' => 'predis',
-			'redispass' => 'root',
-			'redisdb' => 'redisdb',
+			'redisscheme' => 'tcp',
+			'redishost' => '127.0.0.1',
+			'redispassword' => 'xoxoxo',
+			'redisdatabase' => 'redisdb',
 			'redistimeout' => 5,
-			'redishost' => '0.0.0.0'
 		];
 
 		try {
@@ -55,22 +55,7 @@ class RedisConnGenericTest extends TestCase {
 				ZapRedisErr::CONNECTION_ERROR);
 		}
 
-		$args = [
-			'redisscheme' => 'tcp',
-			'redistype' => 'predis',
-			'redishost' => 'localhost',
-			'redistimeout' => 5,
-		];
-		$redis = new ZapRedis($args, self::$logger);
-		$this->assertEquals(
-			$redis->get_connection()->time()[0],
-			$redis->time()
-		);
-
-		$args = [
-			'redistype' => 'redis',
-			'redishost' => '0.0.0.0'
-		];
+		$args['redistype'] = 'redis';
 		try {
 			$redis = new ZapRedis($args, self::$logger);
 		} catch(ZapRedisErr $e) {
@@ -81,7 +66,7 @@ class RedisConnGenericTest extends TestCase {
 	}
 
 	public function test_connection_parameters() {
-		$args = ['redistype' => 'predis'];
+		$args = ['redishost' => 'localhost'];
 		try {
 			$sql = new ZapRedis($args, self::$logger);
 		} catch(ZapRedisErr $e) {
