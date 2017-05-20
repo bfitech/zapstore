@@ -153,7 +153,8 @@ class RedisConnTest extends TestCase {
 		$this->loopredis(function($redis, $redistype){
 			$redis->set('key1', 'val1');
 			# set expire in the past
-			$redis->expire('key1', -3);
+			$redis->expire('key1', 1);
+			sleep(2);
 			$ret = $redis->get('key1');
 			$this->assertEquals($ret, false);
 
