@@ -27,7 +27,8 @@ class RedisConnTest extends TestCase {
 	public static $engine = null;
 
 	public static function prepare_config() {
-		self::$config_file = getcwd() . '/zapstore-redis-test.config.json';
+		self::$config_file = getcwd() .
+			'/zapstore-redis-test.config.json';
 		if (file_exists(self::$config_file)) {
 			$args = @json_decode(
 				file_get_contents(self::$config_file), true);
@@ -43,12 +44,14 @@ class RedisConnTest extends TestCase {
 				'redishost' => '127.0.0.1',
 				'redisport' => '6379',
 				'redispassword' => 'xoxo',
+				'redisdatabase' => 10,
 			],
 			'predis' => [
 				'redistype' => 'predis',
 				'redishost' => '127.0.0.1',
 				'redisport' => '6379',
 				'redispassword' => 'xoxo',
+				'redisdatabase' => 10,
 			],
 		];
 		if (static::$engine) {

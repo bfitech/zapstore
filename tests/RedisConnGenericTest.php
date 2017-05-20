@@ -29,9 +29,7 @@ class RedisConnGenericTest extends TestCase {
 			'redisport' => '6379'
 		];
 		try {
-			$redis = new ZapRedis($args, self::$logger);
-			$redis->close();
-			$this->assertEquals($redis->get_connection(), null);
+			new ZapRedis($args, self::$logger);
 		} catch(ZapRedisErr $e) {
 			$this->assertEquals($e->code,
 				ZapRedisErr::CONNECTION_ERROR);
@@ -39,16 +37,33 @@ class RedisConnGenericTest extends TestCase {
 	}
 
 	public function test_exception() {
-		# invalid database
-		$args = [
-			'redistype' => 'predis',
-			'redisscheme' => 'tcp',
-			'redishost' => '127.0.0.1',
-			'redispassword' => 'xoxo',
-			'redisdatabase' => 1000,
-			'redistimeout' => 5,
-		];
+		$config_file = getcwd() .
+			'/zapstore-redis-test.config.json';
+		if (file_exists($config_file)) {
+			$args = json_decode(file_get_contents(
+				$config_file), true)['predis'];
+		} else {
+			$args = [
+				'redistype' => 'predis',
+				'redishost' => '127.0.0.1',
+				'redisport' => '6379',
+				'redispassword' => 'xoxo',
+				'redisdatabase' => 10,
+			];
+		}
 
+		# invalid database
+		$args['redisdatabase'] = -1000;
+		try {
+			new ZapRedis($args, self::$logger);
+		} catch(ZapRedisErr $e) {
+			$this->assertEquals($e->code,
+				ZapRedisErr::CONNECTION_ERROR);
+		}
+
+		# invalid password
+		$args['redisdatabase'] = 10;
+		$args['redispassword'] = 'xoxox';
 		try {
 			new ZapRedis($args, self::$logger);
 		} catch(ZapRedisErr $e) {
@@ -57,9 +72,10 @@ class RedisConnGenericTest extends TestCase {
 		}
 
 		# valid
-		$args['redisdatabase'] = 10;
+		$args['redispassword'] = 'xoxo';
 		$redis = new ZapRedis($args, self::$logger);
 		$redis->close();
+		$this->assertEquals($redis->get_connection(), null);
 
 		# valid
 		$args['redistype'] = 'redis';
