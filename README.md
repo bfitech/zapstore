@@ -2,7 +2,7 @@
 zapstore
 ========
 
-A simple SQL connection wrapper.
+A simple database connection wrapper.
 
 [![Latest Stable Version](https://poser.pugx.org/bfitech/zapstore/v/stable)](https://packagist.org/packages/bfitech/zapstore)
 [![Latest Unstable Version](https://poser.pugx.org/bfitech/zapstore/v/unstable)](https://packagist.org/packages/bfitech/zapstore)

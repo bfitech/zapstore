@@ -1,6 +1,6 @@
 {
   "name": "bfitech/zapstore",
-  "description": "A simple SQL connection wrapper.",
+  "description": "A simple database connection wrapper.",
   "type": "library",
   "license": "MIT",
   "authors": [
@@ -11,7 +11,7 @@
   ],
   "require": {
     "php": ">=5.5 || ~7.0",
-    "bfitech/zapcore": "~1.3.0"
+    "bfitech/zapcore": "~1.3.3"
   },
   "require-dev": {
     "ext-sqlite3": "*",
@@ -28,8 +28,8 @@
     "bfitech/zapstore-sqlite3": "SQLite3-specific support.",
     "bfitech/zapstore-mysql": "MySQL-specific support.",
     "bfitech/zapstore-pgsql": "PostgreSQL-specific support.",
-    "bfitech/zapstore-redis": "redis-specific support.",
-    "bfitech/zapstore-predis": "predis-specific support."
+    "bfitech/zapstore-redis": "Redis-specific support.",
+    "bfitech/zapstore-predis": "Predis-specific support."
   },
   "autoload": {
     "psr-4": {
