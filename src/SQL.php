@@ -199,11 +199,11 @@ class SQL {
 	}
 
 	/**
-	 * Convenience method to get Unix timestamp from database server.
+	 * Get Unix timestamp from database server.
 	 *
-	 * @return int Unix timestamp.
+	 * @return int Unix epoch.
 	 */
-	public function unix_epoch() {
+	final public function time() {
 		if ($this->dbtype == 'pgsql')
 			return $this->query(
 				"SELECT EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now"
@@ -214,6 +214,16 @@ class SQL {
 		return $this->query(
 			"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now"
 		)['now'];
+	}
+
+	/**
+	 * Get Unix timestamp from database server.
+	 *
+	 * @return int Unix epoch.
+	 * @deprecated Renamed to SQL::time.
+	 */
+	public function unix_epoch() {
+		return $this->time();
 	}
 
 	/**
@@ -257,13 +267,15 @@ class SQL {
 				# we only intent to support FOREIGN KEY-capable engines
 				return "ENGINE=InnoDB";
 			return '';
-		} elseif ($part == "index") {
+		}
+		if ($part == "index") {
 			if ($type == 'pgsql')
 				return 'SERIAL PRIMARY KEY';
 			if ($type == 'mysql')
 				return 'INTEGER PRIMARY KEY AUTO_INCREMENT';
 			return 'INTEGER PRIMARY KEY AUTOINCREMENT';
-		} elseif ($part == 'datetime') {
+		}
+		if ($part == 'datetime') {
 			$delta = 0;
 			if ($args && isset($args['delta']))
 				$delta = (int)$args['delta'];
@@ -336,7 +348,7 @@ class SQL {
 	 *     arguments are cast properly before usage.
 	 * @see https://archive.fo/vKBEz#selection-449.0-454.0
 	 */
-	final public function query($stmt, $args=[], $multiple=false) {
+	final public function query($stmt, $args=[], $multiple=null) {
 		$pstmt = $this->prepare_statement($stmt, $args);
 		$res = $multiple
 			? $pstmt->fetchAll(\PDO::FETCH_ASSOC)
@@ -348,25 +360,32 @@ class SQL {
 	}
 
 	/**
-	 * Raw query execution.
+	 * Execute raw query.
 	 *
-	 * To disable autocommit:
+	 * This will execute arbitray single SQL queries. Do not execute
+	 * multiple queries at once to avoid undocumented side effects.
+	 * To execute successive raw queries safely, disable autocommit as
+	 * follows:
+	 *
 	 * @code
+	 * $connection = new SQL(...);
+	 * try {
 	 *     $connection = $this->get_connection();
 	 *     $connection->beginTransaction();
 	 *     $this->query_raw(...);
+	 *     $this->query_raw(...);
+	 *     $this->query_raw(...);
 	 *     $connection->commit();
-	 * @endcode
-	 * and when exception is caught:
-	 * @code
+	 * } catch(SQLError $e) {
 	 *     $connection->rollBack();
+	 * }
 	 * @endcode
 	 *
 	 * @param string $stmt SQL statement.
 	 * @param array $args Arguments in numeric array.
-	 * @return object Executed statement which, depending of $stmt, can
-	 *     be used for later processing. If $stmt is a SELECT statement,
-	 *     rows can be fetched from this.
+	 * @return object Executed statement which, depending on `$stmt`,
+	 *     can be used for later processing. If `$stmt` is a SELECT
+	 *     statement, rows can be fetched from this.
 	 */
 	final public function query_raw($stmt, $args=[]){
 		$pstmt = $this->prepare_statement($stmt, $args);
@@ -379,10 +398,10 @@ class SQL {
 	 * Insert statement.
 	 *
 	 * @param string $table Table name.
-	 * @param array $args Associative array of what to INSERT.
+	 * @param array $args Dict of what to INSERT.
 	 * @param string $pk Primary key from which last insert ID should
 	 *     be retrieved. This won't take any effect on databases other
-	 *     than postgres. This can take any column name, not necessarily
+	 *     than Postgres. This can take any column name, not necessarily
 	 *     column with PRIMARY KEY attributes. If left null, the whole
 	 *     new row is returned as an array. Using invalid column will
 	 *     throw exception.
@@ -482,7 +501,7 @@ class SQL {
 	 * Retrieve connection.
 	 *
 	 * Useful for checking whether connection is open and other
-	 * things, e.g. creating custom functions.
+	 * things, e.g. creating custom functions on SQLite3.
 	 */
 	public function get_connection() {
 		return $this->connection;
@@ -491,7 +510,7 @@ class SQL {
 	/**
 	 * Retrieve formatted connection string.
 	 *
-	 * Use this, e.g. for dblink connection in postgres.
+	 * Use this, e.g. for dblink connection on Postgres.
 	 */
 	public function get_connection_string() {
 		return $this->connection_string;
