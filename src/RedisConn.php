@@ -60,8 +60,10 @@ class RedisConn {
 	/**
 	 * Constructor.
 	 *
-	 * @param array $params Connection dict.
-	 * @param Logger $logger Instance of BFITech\\ZapCore\\Logger.
+	 * @param array $params Connection dict with keys: `redistype`,
+	 *     `redisscheme`, `redishost`, `redisport`, `redispassword`,
+	 *     `redisdatabase`, `redistimeout`.
+	 * @param Logger $logger Logger instance.
 	 */
 	public function __construct($params, Logger $logger=null) {
 
@@ -152,7 +154,7 @@ class RedisConn {
 	}
 
 	/**
-	 * Log on successful connection.
+	 * Log successful connection.
 	 */
 	private function connection_open_ok() {
 		self::$logger->info(sprintf(
@@ -161,21 +163,18 @@ class RedisConn {
 	}
 
 	/**
-	 * set
-	 *
-	 * Set the string value in argument as value of the key. If you're
-	 * using Redis >= 2.6.12, you can pass extended options as explained
-	 * below.
+	 * Set a value to a key.
 	 *
 	 * @param string $key Key.
 	 * @param string $value Value.
-	 * @param mixed $options Expiration or phpredis options array. If
-	 *     you pass an integer, phpredis will redirect to SETEX and set
-	 *     the expiration. If you pass an array, it will try to use
-	 *     Redis >= 2.6.12 extended options if value is valid. This is
-	 *     ignored if you're using Predis.
+	 * @param mixed $options Expiration in seconds, or phpredis options
+	 *     array. If you pass an integer and you're using phpredis, it
+	 *     will redirect to SETEX and set the expiration. If you pass an
+	 *     array, it will try to use Redis >= 2.6.12 extended options
+	 *     provided that the value is valid. This is ignored if you're
+	 *     using Predis.
 	 *     @see https://git.io/vHJhl.
-	 * @return bool True if the command is successful.
+	 * @return bool True on success.
 	 */
 	final public function set($key, $value, $options=null) {
 		$res = $this->redistype == 'redis'
@@ -189,16 +188,14 @@ class RedisConn {
 	}
 
 	/**
-	 * hset
-	 *
-	 * Add a value to the hash stored at a key.
+	 * Add a value to a key in a hash table.
 	 *
 	 * @param string $key Key.
 	 * @param string $hkey Hash key.
 	 * @param string $value Value.
-	 * @return long 1 if old value doesn't exist and new value is added
-	 *     successfully, 0 if the value is already present and replaced,
-	 *     false on error.
+	 * @return int|bool 1 if old value doesn't exist and new value is
+	 *     added successfully, 0 if the value is already present and
+	 *     replaced, false on error.
 	 */
 	final public function hset($key, $hkey, $value) {
 		$res = $this->connection->hset($key, $hkey, $value);
@@ -211,13 +208,11 @@ class RedisConn {
 	}
 
 	/**
-	 * del
+	 * Remove keys.
 	 *
-	 * Remove specified keys.
-	 *
-	 * @param array $keys An array of keys, or variadic parameters,
-	 *     each corresponding to a Redis key.
-	 * @return long Number of keys deleted.
+	 * @param array $keys An array of keys, or variadic function
+	 *     parameters, each corresponding to a Redis key.
+	 * @return int Number of keys deleted.
 	 */
 	final public function del($keys) {
 		$res = $this->connection->del($keys);
@@ -233,13 +228,12 @@ class RedisConn {
 	}
 
 	/**
-	 * expire
-	 *
-	 * Sets an expiration date (a timeout) on an item.
+	 * Sets expiration time of a key.
 	 *
 	 * @param string $key The key that will disappear.
-	 * @param integer $ttl The key's remaining ttl, in seconds.
-	 * @return bool True on success, false otherwise.
+	 * @param integer $ttl The key's remaining ttl from now, in
+	 *     seconds.
+	 * @return bool True on success.
 	 */
 	final public function expire($key, $ttl) {
 		$method = 'setTimeout';
@@ -252,14 +246,11 @@ class RedisConn {
 	}
 
 	/**
-	 * expireat
-	 *
 	 * Sets an expiration timestamp of an item.
 	 *
 	 * @param string $key The key that will disappear.
-	 * @param integer $ttl Unix timestamp. The key's date of death, in
-	 *     seconds after Unix epoch.
-	 * @return bool True on suceess, false otherwise.
+	 * @param integer $ttl Expiration time in Unix epoch.
+	 * @return bool True on suceess.
 	 */
 	final public function expireat($key, $ttl) {
 		$res = $this->connection->expireat($key, $ttl);
@@ -269,13 +260,10 @@ class RedisConn {
 	}
 
 	/**
-	 * get
-	 *
-	 * Get the value related to the specified key.
+	 * Get value given a key.
 	 *
 	 * @param string $key Key.
-	 * @return string|bool If key doesn't exist, false is returned.
-	 *     Otherwise, the value related to this key is returned.
+	 * @return string|bool The value or false when key doesn't exist.
 	 */
 	final public function get($key) {
 		$res = $this->connection->get($key);
@@ -287,15 +275,13 @@ class RedisConn {
 	}
 
 	/**
-	 * hget
-	 *
-	 * Get a value from the hash stored at key. If the hash table or
-	 * the key doesn't exist, false is returned.
+	 * Get value from the hash table stored at key.
 	 *
 	 * @param string $key Key.
 	 * @param string $hkey Hash key.
-	 * @return string The value, if the command executed successfully.
-	 *     False otherwise.
+	 * @return string|bool The value, if the command executed
+	 *     successfully. False if the hash table or the key doesn't
+	 *     exist.
 	 */
 	final public function hget($key, $hkey=null) {
 		$res = $this->connection->hget($key, $hkey);
@@ -305,11 +291,9 @@ class RedisConn {
 	}
 
 	/**
-	 * ttl
+	 * Get ttl of a given key.
 	 *
-	 * Get ttl of a given key, in seconds.
-	 *
-	 * @param string $key
+	 * @param string $key Key.
 	 * @return long The time to live in seconds. If the key has no ttl,
 	 *     -1 will be returned, and -2 if the key doesn't exist.
 	 */
@@ -321,10 +305,10 @@ class RedisConn {
 	}
 
 	/**
-	 * time
+	 * Get Redis server time.
 	 *
-	 * Get Redis server time. Always use server time as a reference to
-	 * do RedisConn::expireat in case of PHP interpreter's or Redis
+	 * Always use server time as a reference to
+	 * do RedisConn::expireat in case of PHP interpreter and Redis
 	 * server's clock not being properly synched.
 	 *
 	 * @param bool $with_mcs If true, returned time includes microsecond
