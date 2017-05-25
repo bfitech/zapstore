@@ -5,6 +5,8 @@ use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger as Logger;
 use BFITech\ZapStore\RedisConn as ZapRedis;
 use BFITech\ZapStore\RedisError as ZapRedisErr;
+use BFITech\ZapStore\Predis;
+use BFITech\ZapStore\Redis;
 use Predis\Response\Status as ResponseStatus;
 
 
@@ -202,6 +204,32 @@ class RedisConnTest extends TestCase {
 			$this->assertEquals(in_array($ttl, [9, 10]), true);
 			$redis->del('key1');
 		});
+	}
+
+	public function test_predis() {
+		self::$engine = 'predis';
+		$logger = new Logger(
+			Logger::ERROR, getcwd() . '/zapstore-redis-test.log');
+		$config = json_decode(
+			file_get_contents(
+				getcwd() . '/zapstore-redis-test.config.json'),
+			true);
+		$sql = new Predis($config['predis'], $logger);
+		$this->assertEquals(
+			$sql->get_connection_params()['redistype'], 'predis');
+	}
+
+	public function test_redis() {
+		self::$engine = 'redis';
+		$logger = new Logger(
+			Logger::ERROR, getcwd() . '/zapstore-redis-test.log');
+		$config = json_decode(
+			file_get_contents(
+				getcwd() . '/zapstore-redis-test.config.json'),
+			true);
+		$sql = new Redis($config['redis'], $logger);
+		$this->assertEquals(
+			$sql->get_connection_params()['redistype'], 'redis');
 	}
 }
 

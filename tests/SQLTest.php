@@ -1,8 +1,10 @@
 <?php
 
-
 use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger as Logger;
+use BFITech\ZapStore\MySQL;
+use BFITech\ZapStore\PgSQL;
+use BFITech\ZapStore\SQLite3;
 use BFITech\ZapStore\SQL;
 use BFITech\ZapStore\SQLError;
 
@@ -417,6 +419,39 @@ class SQLTest extends TestCase {
 					SQLError::EXECUTION_ERROR);
 			}
 		});
+	}
+
+	public function test_mysql() {
+		self::$engine = 'mysql';
+		$logger = new Logger(
+			Logger::ERROR, getcwd() . '/zapstore-test.log');
+		$config = json_decode(
+			file_get_contents(getcwd() . '/zapstore-test.config.json'),
+			true);
+		$sql = new MySQL($config['mysql'], $logger);
+		$this->assertEquals(
+			$sql->get_connection_params()['dbtype'], 'mysql');
+	}
+
+	public function test_pgsql() {
+		self::$engine = 'pgsql';
+		$logger = new Logger(
+			Logger::ERROR, getcwd() . '/zapstore-test.log');
+		$config = json_decode(
+			file_get_contents(getcwd() . '/zapstore-test.config.json'),
+			true);
+		$sql = new PgSQL($config['pgsql'], $logger);
+		$this->assertEquals(
+			$sql->get_connection_params()['dbtype'], 'pgsql');
+	}
+
+	public function test_sqlite3() {
+		self::$engine = 'sqlite3';
+		$logger = new Logger(
+			Logger::ERROR, getcwd() . '/zapstore-test.log');
+		$sql = new SQLite3(['dbname' => ':memory:'], $logger);
+		$this->assertEquals(
+			$sql->get_connection_params()['dbtype'], 'sqlite3');
 	}
 
 }
