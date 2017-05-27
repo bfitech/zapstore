@@ -36,19 +36,17 @@ class RedisConnGenericTest extends TestCase {
 		}
 	}
 
-	public function test_exception() {
+	private function invoke_exception($type) {
 		$config_file = getcwd() .
 			'/zapstore-redis-test.config.json';
 		if (file_exists($config_file)) {
 			$args = json_decode(file_get_contents(
-				$config_file), true)['predis'];
+				$config_file), true)[$type];
 		} else {
 			$args = [
-				'redistype' => 'predis',
+				'redistype' => $type,
 				'redishost' => '127.0.0.1',
 				'redisport' => '6379',
-				'redispassword' => 'xoxo',
-				'redisdatabase' => 10,
 			];
 		}
 
@@ -77,16 +75,12 @@ class RedisConnGenericTest extends TestCase {
 		$redis->close();
 		$this->assertEquals($redis->get_connection(), null);
 
-		# valid
-		$args['redistype'] = 'redis';
-		try {
-			$redis = new ZapRedis($args, self::$logger);
-		} catch(ZapRedisErr $e) {
-			$this->assertEquals($e->code,
-				ZapRedisErr::CONNECTION_ERROR);
+	}
+
+	public function test_exception() {
+		foreach (['redis', 'predis'] as $type) {
+			$this->invoke_exception($type);
 		}
-		$this->assertEquals('redis',
-			$redis->get_connection_params()['redistype']);
 	}
 
 	public function test_connection_parameters() {
