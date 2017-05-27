@@ -113,10 +113,9 @@ class RedisConnTest extends TestCase {
 		$this->loopredis(function($redis, $redistype){
 			$conn = $redis->get_connection();
 			if ($redistype == 'redis')
-				$this->assertEquals($conn instanceof \Redis, true);
+				$this->assertTrue($conn instanceof \Redis);
 			if ($redistype == 'predis')
-				$this->assertEquals($conn instanceof \Predis\Client,
-					true);
+				$this->assertTrue($conn instanceof \Predis\Client);
 		});
 	}
 
