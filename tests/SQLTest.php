@@ -63,14 +63,14 @@ class SQLTest extends TestCase {
 				'dbpass' => '',
 			],
 		];
+		file_put_contents(self::$config_file,
+			json_encode($args, JSON_PRETTY_PRINT));
 		if (static::$engine) {
 			foreach ($args as $key => $_) {
 				if ($key != static::$engine)
 					unset($args[$key]);
 			}
 		}
-		file_put_contents(self::$config_file,
-			json_encode($args, JSON_PRETTY_PRINT));
 		self::$args = $args;
 	}
 
