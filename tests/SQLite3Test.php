@@ -4,18 +4,18 @@
 require_once(__DIR__ . '/SQLTest.php');
 
 
+use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger;
-use BFITech\ZapStore as zs;
+use BFITech\ZapStore\SQLite3;
 
 
-class SQLite3Test extends SQLTest {
-
-	public static $engine = 'sqlite3';
+class SQLite3Test extends TestCase {
 
 	public function test_sqlite3() {
 		$logger = new Logger(
 			Logger::ERROR, getcwd() . '/zapstore-test.log');
-		$sql = new zs\SQLite3(['dbname' => ':memory:'], $logger);
+		$args = prepare_config('sqlite3');
+		$sql = new SQLite3($args, $logger);
 		$this->assertEquals(
 			$sql->get_connection_params()['dbtype'], 'sqlite3');
 	}

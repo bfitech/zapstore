@@ -10,6 +10,46 @@ use BFITech\ZapStore\SQL;
 use BFITech\ZapStore\SQLError;
 
 
+function prepare_config($engine=null) {
+	$config_file = getcwd() . '/zapstore-test.config.json';
+	if (file_exists($config_file)) {
+		$args = @json_decode(
+			file_get_contents($config_file), true);
+		if ($args) {
+			if ($engine)
+				return $args[$engine];
+			return $args;
+		}
+	}
+	# connection parameter stub
+	$args = [
+		'sqlite3' => [
+			'dbtype' => 'sqlite3',
+			'dbname' => getcwd() . '/zapstore-test.sq3',
+		],
+		'pgsql' => [
+			'dbtype' => 'pgsql',
+			'dbname' => 'zapstore_test_db',
+			'dbhost' => 'localhost',
+			'dbuser' => 'postgres',
+			'dbpass' => '',
+		],
+		'mysql' => [
+			'dbtype' => 'mysql',
+			'dbname' => 'zapstore_test_db',
+			# 'localhost' is for unix socket
+			'dbhost' => '127.0.0.1',
+			'dbuser' => 'root',
+			'dbpass' => '',
+		],
+	];
+	file_put_contents($config_file,
+		json_encode($args, JSON_PRETTY_PRINT));
+	if ($engine)
+		return [$engine => $args[$engine]];
+	return $args;
+}
+
 /**
  * Database-specific test.
  *
@@ -32,46 +72,7 @@ class SQLTest extends TestCase {
 	private $time_stmt_test = null;
 
 	public static function prepare_config() {
-		self::$config_file = getcwd() . '/zapstore-test.config.json';
-		if (file_exists(self::$config_file)) {
-			$args = @json_decode(
-				file_get_contents(self::$config_file), true);
-			if ($args) {
-				self::$args = $args;
-				return;
-			}
-		}
-		# connection parameter stub
-		$args = [
-			'sqlite3' => [
-				'dbtype' => 'sqlite3',
-				'dbname' => getcwd() . '/zapstore-test.sq3',
-			],
-			'pgsql' => [
-				'dbtype' => 'pgsql',
-				'dbname' => 'zapstore_test_db',
-				'dbhost' => 'localhost',
-				'dbuser' => 'postgres',
-				'dbpass' => '',
-			],
-			'mysql' => [
-				'dbtype' => 'mysql',
-				'dbname' => 'zapstore_test_db',
-				# 'localhost' is for unix socket
-				'dbhost' => '127.0.0.1',
-				'dbuser' => 'root',
-				'dbpass' => '',
-			],
-		];
-		file_put_contents(self::$config_file,
-			json_encode($args, JSON_PRETTY_PRINT));
-		if (static::$engine) {
-			foreach ($args as $key => $_) {
-				if ($key != static::$engine)
-					unset($args[$key]);
-			}
-		}
-		self::$args = $args;
+		return self::$args = prepare_config(static::$engine);
 	}
 
 	public static function setUpBeforeClass() {
