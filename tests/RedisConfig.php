@@ -28,12 +28,6 @@ function prepare_config_redis($engine=null) {
 			'redisdatabase' => 10,
 		],
 	];
-	if ($engine) {
-		foreach ($args as $key => $_) {
-			if ($key != $engine)
-				unset($args[$key]);
-		}
-	}
 	file_put_contents($config_file,
 		json_encode($args, JSON_PRETTY_PRINT));
 	if ($engine)
