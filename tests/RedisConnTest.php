@@ -1,6 +1,9 @@
 <?php
 
 
+require_once __DIR__ . '/RedisConfig.php';
+
+
 use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger as Logger;
 use BFITech\ZapStore\RedisConn as ZapRedis;
@@ -8,7 +11,6 @@ use BFITech\ZapStore\RedisError as ZapRedisErr;
 use BFITech\ZapStore\Predis;
 use BFITech\ZapStore\Redis;
 use Predis\Response\Status as ResponseStatus;
-
 
 /**
  * Database-specific test.
@@ -28,47 +30,8 @@ class RedisConnTest extends TestCase {
 
 	public static $engine = null;
 
-	public static function prepare_config() {
-		self::$config_file = getcwd() .
-			'/zapstore-redis-test.config.json';
-		if (file_exists(self::$config_file)) {
-			$args = @json_decode(
-				file_get_contents(self::$config_file), true);
-			if ($args) {
-				self::$args = $args;
-				return;
-			}
-		}
-		# connection parameter stub
-		$args = [
-			'redis' => [
-				'redistype' => 'redis',
-				'redishost' => '127.0.0.1',
-				'redisport' => '6379',
-				'redispassword' => 'xoxo',
-				'redisdatabase' => 10,
-			],
-			'predis' => [
-				'redistype' => 'predis',
-				'redishost' => '127.0.0.1',
-				'redisport' => '6379',
-				'redispassword' => 'xoxo',
-				'redisdatabase' => 10,
-			],
-		];
-		if (static::$engine) {
-			foreach ($args as $key => $_) {
-				if ($key != static::$engine)
-					unset($args[$key]);
-			}
-		}
-		file_put_contents(self::$config_file,
-			json_encode($args, JSON_PRETTY_PRINT));
-		self::$args = $args;
-	}
-
 	public static function setUpBeforeClass() {
-		self::prepare_config();
+		self::$args = prepare_config_redis(static::$engine);
 
 		$logfile = getcwd() . '/zapstore-redis-test.log';
 		if (file_exists($logfile))
@@ -203,32 +166,6 @@ class RedisConnTest extends TestCase {
 			$this->assertEquals(in_array($ttl, [9, 10]), true);
 			$redis->del('key1');
 		});
-	}
-
-	public function test_predis() {
-		self::$engine = 'predis';
-		$logger = new Logger(
-			Logger::ERROR, getcwd() . '/zapstore-redis-test.log');
-		$config = json_decode(
-			file_get_contents(
-				getcwd() . '/zapstore-redis-test.config.json'),
-			true);
-		$sql = new Predis($config['predis'], $logger);
-		$this->assertEquals(
-			$sql->get_connection_params()['redistype'], 'predis');
-	}
-
-	public function test_redis() {
-		self::$engine = 'redis';
-		$logger = new Logger(
-			Logger::ERROR, getcwd() . '/zapstore-redis-test.log');
-		$config = json_decode(
-			file_get_contents(
-				getcwd() . '/zapstore-redis-test.config.json'),
-			true);
-		$sql = new Redis($config['redis'], $logger);
-		$this->assertEquals(
-			$sql->get_connection_params()['redistype'], 'redis');
 	}
 }
 
