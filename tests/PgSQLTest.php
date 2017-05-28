@@ -1,7 +1,7 @@
 <?php
 
 
-require_once(__DIR__ . '/SQLTest.php');
+require_once __DIR__ . '/SQLConfig.php';
 
 
 use PHPUnit\Framework\TestCase;
