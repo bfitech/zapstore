@@ -26,4 +26,3 @@ class SQLite3 extends SQL {
 	}
 
 }
-

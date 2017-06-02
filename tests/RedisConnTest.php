@@ -53,7 +53,8 @@ class RedisConnTest extends TestCase {
 		}
 	}
 
-	public static function tearDownAfterClass() {}
+	public static function tearDownAfterClass() {
+	}
 
 	public function tearDown() {
 		$this->loopredis(function($redis, $redistype){
@@ -167,5 +168,5 @@ class RedisConnTest extends TestCase {
 			$redis->del('key1');
 		});
 	}
-}
 
+}

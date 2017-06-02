@@ -6,7 +6,10 @@
 *.conf
 *.ini
 *.sq3
+*.orig
+
 .htaccess
+.DS_Store
 composer.lock
 zapstore-test.*
 zapstore-redis-test.*

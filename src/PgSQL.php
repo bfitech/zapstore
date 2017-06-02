@@ -26,4 +26,3 @@ class PgSQL extends SQL {
 	}
 
 }
-

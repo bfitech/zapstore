@@ -1,6 +1,5 @@
 <?php
 
-
 function prepare_config_redis($engine=null) {
 	$config_file = getcwd() .
 		'/zapstore-redis-test.config.json';
@@ -34,4 +33,3 @@ function prepare_config_redis($engine=null) {
 		return $args[$engine];
 	return $args;
 }
-

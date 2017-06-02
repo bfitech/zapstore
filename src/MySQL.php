@@ -26,4 +26,3 @@ class MySQL extends SQL {
 	}
 
 }
-

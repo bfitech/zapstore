@@ -101,5 +101,5 @@ class RedisConnGenericTest extends TestCase {
 				ZapRedisErr::REDISTYPE_ERROR);
 		}
 	}
-}
 
+}

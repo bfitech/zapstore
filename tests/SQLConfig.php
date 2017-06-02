@@ -1,6 +1,5 @@
 <?php
 
-
 function prepare_config($engine=null) {
 	$config_file = getcwd() . '/zapstore-test.config.json';
 	if (file_exists($config_file)) {
@@ -37,4 +36,3 @@ function prepare_config($engine=null) {
 		return $args[$engine];
 	return $args;
 }
-

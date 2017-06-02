@@ -64,7 +64,8 @@ class SQLTest extends TestCase {
 				$sql->query_raw("DROP TABLE try0");
 				$sql->query_raw("DROP TABLE try1");
 				$sql->query_raw("DROP TABLE try2");
-			} catch(SQLError $e) {}
+			} catch(SQLError $e) {
+			}
 		}
 	}
 
@@ -381,5 +382,5 @@ class SQLTest extends TestCase {
 			}
 		});
 	}
-}
 
+}

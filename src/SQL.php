@@ -55,6 +55,7 @@ class SQLError extends \Exception {
 	public function getArgs() {
 		return $this->args;
 	}
+
 }
 
 
@@ -141,7 +142,7 @@ class SQL {
 					"'dbuser' not supplied.");
 			}
 			$cstr = 'pgsql:';
-			$cstr.= sprintf("dbname=%s", $this->dbname);
+			$cstr .= sprintf("dbname=%s", $this->dbname);
 			if ($this->dbhost) {
 				$cstr .= sprintf(";host=%s", $this->dbhost);
 				if ($this->dbport)
@@ -393,7 +394,7 @@ class SQL {
 	 *     can be used for later processing. If `$stmt` is a SELECT
 	 *     statement, rows can be fetched from this.
 	 */
-	final public function query_raw($stmt, $args=[]){
+	final public function query_raw($stmt, $args=[]) {
 		$pstmt = $this->prepare_statement($stmt, $args);
 		self::$logger->info(sprintf(
 			"SQL: query raw ok: %s.", $stmt));
@@ -528,5 +529,5 @@ class SQL {
 	public function get_connection_params() {
 		return $this->verified_params;
 	}
-}
 
+}

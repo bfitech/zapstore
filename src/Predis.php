@@ -26,4 +26,3 @@ class Predis extends RedisConn {
 	}
 
 }
-

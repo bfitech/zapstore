@@ -116,4 +116,3 @@ class SQLGenericTest extends TestCase {
 	}
 
 }
-

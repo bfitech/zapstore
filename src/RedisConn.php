@@ -34,6 +34,7 @@ class RedisError extends \Exception {
 		$this->message = $message;
 		parent::__construct($message, $code, null);
 	}
+
 }
 
 
@@ -372,5 +373,5 @@ class RedisConn {
 	public function get_connection_params() {
 		return $this->verified_params;
 	}
-}
 
+}
