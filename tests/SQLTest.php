@@ -5,7 +5,7 @@ require_once __DIR__ . '/SQLConfig.php';
 
 
 use PHPUnit\Framework\TestCase;
-use BFITech\ZapCore\Logger as Logger;
+use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\MySQL;
 use BFITech\ZapStore\PgSQL;
 use BFITech\ZapStore\SQLite3;

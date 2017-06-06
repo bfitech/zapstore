@@ -4,7 +4,7 @@
 namespace BFITech\ZapStore;
 
 
-use BFITech\ZapCore\Logger as Logger;
+use BFITech\ZapCore\Logger;
 
 
 /**

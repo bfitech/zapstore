@@ -2,7 +2,7 @@
 
 
 use PHPUnit\Framework\TestCase;
-use BFITech\ZapCore\Logger as Logger;
+use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\RedisConn as ZapRedis;
 use BFITech\ZapStore\RedisError as ZapRedisErr;
 
