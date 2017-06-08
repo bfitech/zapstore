@@ -202,6 +202,15 @@ class SQL {
 	}
 
 	/**
+	 * Close connection.
+	 */
+	public function close() {
+		$this->connection = null;
+		$this->connection_string = '';
+		$this->verified_params = null;
+	}
+
+	/**
 	 * Get Unix timestamp from database server.
 	 *
 	 * @return int Unix epoch.
@@ -292,12 +301,27 @@ class SQL {
 	}
 
 	/**
-	 * Close connection.
+	 * Check if a table or view exists.
+	 *
+	 * @param string $table Table or view name.
+	 * @return bool True if table or view does exist.
+	 * @fixme This will always re-activate logging at the end,
+	 *     regardless the logging state. The fix must be in Logger
+	 *     class itself where logging state must be exposed.
 	 */
-	public function close() {
-		$this->connection = null;
-		$this->connection_string = '';
-		$this->verified_params = null;
+	public function table_exists($table) {
+		# we can't use placeholder for table name
+		if (!preg_match('!^[0-9a-z_]+$!i', $table))
+			return false;
+		self::$logger->deactivate();
+		try {
+			$this->query(sprintf("SELECT 1 FROM %s LIMIT 1", $table));
+			self::$logger->activate();
+			return true;
+		} catch(SQLError $e) {
+			self::$logger->activate();
+			return false;
+		}
 	}
 
 	/**

@@ -233,14 +233,10 @@ class SQLTest extends TestCase {
 	 */
 	public function test_select() {
 		$this->dbs(function($sql){
-			try {
-				# table doesn't exist
-				# can be used to check table existence
-				$sql->query("SELECT 1 FROM wrong_table");
-			} catch(SQLError $e) {
-				$this->assertEquals($e->code,
-					SQLError::EXECUTION_ERROR);
-			}
+
+			# table doesn't exist
+			$this->assertFalse($sql->table_exists('#wrong_table'));
+			$this->assertFalse($sql->table_exists('wrong_table'));
 
 			try {
 				$result = $sql->query("
@@ -252,6 +248,9 @@ class SQLTest extends TestCase {
 				$this->assertEquals($e->code,
 					SQLError::EXECUTION_ERROR);
 			}
+
+			# table does exist
+			$this->assertTrue($sql->table_exists('test'));
 
 			try {
 				# syntax error
