@@ -35,7 +35,9 @@ class SQLTest extends TestCase {
 	private $time_stmt_test = null;
 
 	public static function setUpBeforeClass() {
-		self::$args = prepare_config(static::$engine);
+		self::$config_file = getcwd() . '/zapstore-test.config.json';
+		self::$args = prepare_config(
+			static::$engine, self::$config_file);
 
 		$logfile = getcwd() . '/zapstore-test.log';
 		if (file_exists($logfile))
@@ -49,9 +51,10 @@ class SQLTest extends TestCase {
 				printf(
 					"ERROR: Cannot connect to '%s' test database.\n\n" .
 					"- Check extensions for interpreter: %s.\n" .
-					"- Fix test configuration: %s.\n" .
+					"- Fix test configuration '%s': %s\n" .
 					"- Inspect test log: %s.\n\n",
-				$key, PHP_BINARY, self::$config_file, $logfile);
+					$key, PHP_BINARY, self::$config_file,
+					file_get_contents(self::$config_file), $logfile);
 				exit(1);
 			}
 		}
@@ -144,10 +147,11 @@ class SQLTest extends TestCase {
 				$this->assertNotEquals($dtobj, false);
 				$unix_ts[$tense] = $dtobj->getTimestamp();
 			}
-			$this->assertEquals(
-				$unix_ts['future'] - $unix_ts['present'], 3600);
-			$this->assertEquals(
-				$unix_ts['present'] - $unix_ts['past'], 3600);
+			# allow 2-second delay
+			$this->assertLessThan(2,
+				$unix_ts['future'] - $unix_ts['present'] -  3600);
+			$this->assertLessThan(2,
+				$unix_ts['present'] - $unix_ts['past'] -  3600);
 		});
 	}
 

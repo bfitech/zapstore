@@ -31,7 +31,10 @@ class RedisConnTest extends TestCase {
 	public static $engine = null;
 
 	public static function setUpBeforeClass() {
-		self::$args = prepare_config_redis(static::$engine);
+		self::$config_file = getcwd() .
+			'/zapstore-redis-test.config.json';
+		self::$args = prepare_config_redis(
+			static::$engine, self::$config_file);
 
 		$logfile = getcwd() . '/zapstore-redis-test.log';
 		if (file_exists($logfile))
@@ -45,9 +48,10 @@ class RedisConnTest extends TestCase {
 				printf(
 					"ERROR: Cannot connect to '%s' test database.\n\n" .
 					"- Check extensions for interpreter: %s.\n" .
-					"- Fix test configuration: %s.\n" .
+					"- Fix test configuration '%s': %s\n" .
 					"- Inspect test log: %s.\n\n",
-				$key, PHP_BINARY, self::$config_file, $logfile);
+					$key, PHP_BINARY, self::$config_file,
+					file_get_contents(self::$config_file), $logfile);
 				exit(1);
 			}
 		}

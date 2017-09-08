@@ -1,0 +1,50 @@
+
+
+pipeline:
+    tests:
+        image: bfitech/php-xdebug:${PHP}
+        environment:
+            - POSTGRES_HOST=postgres
+            - POSTGRES_USER=postgres
+            - POSTGRES_DB=zapstore_test_db
+            - MYSQL_HOST=mariadb
+            - MYSQL_USER=root
+            - MYSQL_DB=zapstore_test_db
+            - REDISHOST=redis
+            - REDISPASSWORD=xoxo
+        commands:
+            - sleep 4
+            - composer -vv update -no
+            - ./vendor/bin/phpunit --coverage-text
+        volumes:
+            # needs trusted flag by admin on drone settings
+            - /tmp/.composer/cache:/tmp/cache
+
+matrix:
+    PHP:
+        - 7.1
+        - 7.0
+        - 5.6
+
+services:
+    postgres:
+        image: postgres:9.6-alpine
+        environment:
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=
+            - POSTGRES_DB=zapstore_test_db
+            - DEBUG=true
+    mariadb:
+        image: mariadb:10.3
+        environment:
+            - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+            - MYSQL_ROOT_PASSWORD=
+            - MYSQL_USER=root
+            - MYSQL_PASSWORD=
+            - MYSQL_DATABASE=zapstore_test_db
+    redis:
+        image: redis:3.2-alpine
+        detach: true
+        commands:
+            - /usr/local/bin/redis-server --requirepass xoxo
+
