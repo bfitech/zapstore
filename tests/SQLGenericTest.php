@@ -25,8 +25,6 @@ class SQLGenericTest extends TestCase {
 	public function test_exception() {
 		$args = ['dbname' => ':memory:', 'dbtype' => 'sqlite3'];
 		$sql = new SQL($args, self::$logger);
-		# deprecated
-		$sql->open();
 
 		$invalid_stmt = "SELECT datetim() AS now, 1+? AS num";
 		try {

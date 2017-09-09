@@ -100,22 +100,34 @@ class RedisConn {
 				$this->redistype . " not supported.");
 		}
 
-		if ($this->redistype == 'predis') {
-			$args = [];
-			foreach ($propkeys as $key) {
-				if ($key == 'redistype' || !$this->$key)
-					continue;
-				$args[substr($key, 5)] = $this->$key;
-			}
-			try {
-				$this->connection = new \Predis\Client($args);
-				$this->connection->ping();
-				return $this->connection_open_ok();
-			} catch(\Predis\Connection\ConnectionException $e) {
-				return $this->connection_open_fail($e->getMessage());
-			}
-		}
+		if ($this->redistype == 'predis')
+			return $this->connection__predis();
+		return $this->connection__redis();
+	}
 
+	/**
+	 * Open connection with predis.
+	 */
+	private function connection__predis() {
+		$args = [];
+		foreach (array_keys($this->verified_params) as $key) {
+			if ($key == 'redistype' || !$this->$key)
+				continue;
+			$args[substr($key, 5)] = $this->$key;
+		}
+		try {
+			$this->connection = new \Predis\Client($args);
+			$this->connection->ping();
+			return $this->connection_open_ok();
+		} catch(\Predis\Connection\ConnectionException $e) {
+			return $this->connection_open_fail($e->getMessage());
+		}
+	}
+
+	/**
+	 * Open connection with ext-redis.
+	 */
+	private function connection__redis() {
 		$this->connection = new \Redis();
 		# @note: This emits warning on failure instead of throwing
 		# exception, hence the @ sign.
@@ -141,7 +153,7 @@ class RedisConn {
 		} catch(\RedisException $e) {
 			return $this->connection_open_fail($e->getMessage());
 		}
-		$this->connection_open_ok();
+		return $this->connection_open_ok();
 	}
 
 	/**

@@ -284,7 +284,7 @@ class SQLTest extends TestCase {
 
 			# check if database and interpreter time match to the
 			# hour
-			$tstamp = gmdate('Y-m-d H', $sql->unix_epoch());
+			$tstamp = gmdate('Y-m-d H', $sql->time());
 			$this->assertEquals($tstamp, gmdate('Y-m-d H'));
 		});
 	}

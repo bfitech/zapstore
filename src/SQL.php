@@ -113,63 +113,24 @@ class SQL {
 			}
 		}
 
-		if ($this->dbtype == 'sqlite3') {
-			$this->connection_string = 'sqlite:' . $this->dbname;
-			$this->verified_params = $verified_params;
-		} elseif ($this->dbtype == 'mysql') {
-			if (!$this->dbuser) {
-				self::$logger->error(
-					"SQL: param not supplied: 'dbuser'.");
-				throw new SQLError(
-					SQLError::CONNECTION_ARGS_ERROR,
-					"'dbuser' not supplied.");
-			}
-			$cstr = 'mysql:';
-			$cstr .= sprintf("dbname=%s", $this->dbname);
-			if ($this->dbhost) {
-				$cstr .= sprintf(';host=%s', $this->dbhost);
-				if ($this->dbport)
-					$cstr .= sprintf(';port=%s', $this->dbhost);
-			}
-			$this->connection_string = $cstr;
-			$this->verified_params = $verified_params;
-		} elseif ($this->dbtype == 'pgsql') {
-			if (!$this->dbuser) {
-				self::$logger->error(
-					"SQL: param not supplied: 'dbuser'.");
-				throw new SQLError(
-					SQLError::CONNECTION_ARGS_ERROR,
-					"'dbuser' not supplied.");
-			}
-			$cstr = 'pgsql:';
-			$cstr .= sprintf("dbname=%s", $this->dbname);
-			if ($this->dbhost) {
-				$cstr .= sprintf(";host=%s", $this->dbhost);
-				if ($this->dbport)
-					$cstr .= sprintf(";port=%s", $this->dbport);
-			}
-			$cstr .= sprintf(";user=%s", $this->dbuser);
-			if ($this->dbpass)
-				$cstr .= sprintf(";password=%s", $this->dbpass);
-			$this->connection_string = $cstr;
-			$this->verified_params = $verified_params;
-		} else {
-			self::$logger->error(sprintf(
-				"SQL: database not supported: '%s'.",
-				$this->dbtype));
-			throw new SQLError(SQLError::DBTYPE_ERROR,
-				$this->dbtype . " not supported.");
-		}
+		$this->verified_params = $verified_params;
 
+		$this->format_connection_string();
+
+		$this->open_pdo_connection();
+	}
+
+	/**
+	 * Open PDO connection.
+	 */
+	private function open_pdo_connection() {
 		try {
-			if (in_array($this->dbtype, ['sqlite3', 'pgsql'])) {
-				$this->connection = new \PDO(
-					$this->connection_string);
-			} else {
-				$this->connection = new \PDO(
+			$this->connection = in_array(
+					$this->dbtype, ['sqlite3', 'pgsql'])
+				? new \PDO($this->connection_string)
+				: new \PDO(
 					$this->connection_string,
 					$this->dbuser, $this->dbpass);
-			}
 			self::$logger->debug(sprintf(
 				"SQL: connection opened: '%s'.",
 				json_encode($this->verified_params)));
@@ -190,15 +151,45 @@ class SQL {
 	}
 
 	/**
-	 * Open connection.
-	 *
-	 * @deprecated
-	 *     Opening connection now is automatically done by constructor.
-	 *     When connection fails, throw an exception instead of modify
-	 *     certain property.
-	 *
+	 * Verify and format connection string.
 	 */
-	public function open() {
+	private function format_connection_string() {
+		if (!in_array($this->dbtype, ['sqlite3', 'mysql', 'pgsql'])) {
+			$this->verified_params = null;
+			self::$logger->error(sprintf(
+				"SQL: database not supported: '%s'.",
+				$this->dbtype));
+			throw new SQLError(SQLError::DBTYPE_ERROR,
+				$this->dbtype . " not supported.");
+		}
+
+		if ($this->dbtype == 'sqlite3')
+			return $this->connection_string = 'sqlite:' . $this->dbname;
+
+		if (!$this->dbuser) {
+			$this->verified_params = null;
+			self::$logger->error(
+				"SQL: param not supplied: 'dbuser'.");
+			throw new SQLError(
+				SQLError::CONNECTION_ARGS_ERROR,
+				"'dbuser' not supplied.");
+		}
+
+		$cstr = sprintf("%s:dbname=%s", $this->dbtype, $this->dbname);
+		if ($this->dbhost) {
+			$cstr .= sprintf(';host=%s', $this->dbhost);
+			if ($this->dbport)
+				$cstr .= sprintf(';port=%s', $this->dbport);
+		}
+
+		if ($this->dbtype == 'mysql')
+			# mysql uses dbuser and dbpass on PDO constructor
+			return $this->connection_string = $cstr;
+
+		$cstr .= sprintf(";user=%s", $this->dbuser);
+		if ($this->dbpass)
+			$cstr .= sprintf(";password=%s", $this->dbpass);
+		return $this->connection_string = $cstr;
 	}
 
 	/**
@@ -226,16 +217,6 @@ class SQL {
 		return $this->query(
 			"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now"
 		)['now'];
-	}
-
-	/**
-	 * Get Unix timestamp from database server.
-	 *
-	 * @return int Unix epoch.
-	 * @deprecated Renamed to SQL::time.
-	 */
-	public function unix_epoch() {
-		return $this->time();
 	}
 
 	/**
