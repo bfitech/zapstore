@@ -14,7 +14,7 @@ before_install:
     - echo "extension=redis.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
 
 before_script:
-    - redis-server /etc/redis/redis.conf --port 6379 --requirepass 'xoxo'
+    - redis-server --requirepass 'xoxo'
     - createdb -Upostgres -EUTF-8 -Ttemplate0 zapstore_test_db
     - mysql -e 'CREATE DATABASE zapstore_test_db'
     - composer install -no
