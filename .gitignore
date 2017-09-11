@@ -11,9 +11,8 @@
 .htaccess
 .DS_Store
 composer.lock
-zapstore-test.*
-zapstore-redis-test.*
 
 /vendor/
 /docs/
+/tests/testdata/
 

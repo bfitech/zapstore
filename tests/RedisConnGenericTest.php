@@ -2,6 +2,7 @@
 
 
 use PHPUnit\Framework\TestCase;
+use BFITech\ZapCoreDev\CoreDev;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\RedisConn as ZapRedis;
 use BFITech\ZapStore\RedisError as ZapRedisErr;
@@ -18,7 +19,8 @@ class RedisConnGenericTest extends TestCase {
 	public static $logger;
 
 	public static function setUpBeforeClass() {
-		$logfile = getcwd() . '/zapstore-redis-test.log';
+		$logfile = CoreDev::testdir(__FILE__) .
+			'/zapstore-redis.log';
 		self::$logger = new Logger(Logger::DEBUG, $logfile);
 	}
 
@@ -37,8 +39,8 @@ class RedisConnGenericTest extends TestCase {
 	}
 
 	private function invoke_exception($type) {
-		$config_file = getcwd() .
-			'/zapstore-redis-test.config.json';
+		$config_file = __TESTDIR__ .
+			'/zapstore-redis.json';
 		if (file_exists($config_file)) {
 			$args = json_decode(file_get_contents(
 				$config_file), true)[$type];
