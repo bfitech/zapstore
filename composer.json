@@ -10,8 +10,8 @@
     }
   ],
   "require": {
-    "php": ">=5.5 || ~7.0",
-    "bfitech/zapcore": "~1.3.5"
+    "php": ">=5.5 <7.2",
+    "bfitech/zapcore": "~1.3.7"
   },
   "require-dev": {
     "ext-sqlite3": "*",
@@ -38,7 +38,7 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "BFITech\\ZapCoreDev\\": "vendor/bfitech/zapcore/dev"
+      "BFITech\\ZapCommonDev\\": "vendor/bfitech/zapcore/dev"
     }
   },
   "extra": {
