@@ -5,7 +5,7 @@ require_once __DIR__ . '/RedisConfig.php';
 
 
 use PHPUnit\Framework\TestCase;
-use BFITech\ZapCoreDev\CoreDev;
+use BFITech\ZapCommonDev\CommonDev;
 use BFITech\ZapCore\Logger as Logger;
 use BFITech\ZapStore\RedisConn as ZapRedis;
 use BFITech\ZapStore\RedisError as ZapRedisErr;
@@ -32,7 +32,7 @@ class RedisConnTest extends TestCase {
 	public static $engine = null;
 
 	public static function setUpBeforeClass() {
-		self::$config_file = CoreDev::testdir(__FILE__) .
+		self::$config_file = CommonDev::testdir(__FILE__) .
 			'/zapstore-redis.json';
 		self::$args = prepare_config_redis(
 			static::$engine, self::$config_file);

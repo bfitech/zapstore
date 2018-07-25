@@ -5,7 +5,7 @@ require_once __DIR__ . '/SQLConfig.php';
 
 
 use PHPUnit\Framework\TestCase;
-use BFITech\ZapCoreDev\CoreDev;
+use BFITech\ZapCommonDev\CommonDev;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\MySQL;
 use BFITech\ZapStore\PgSQL;
@@ -36,7 +36,7 @@ class SQLTest extends TestCase {
 	private $time_stmt_test = null;
 
 	public static function setUpBeforeClass() {
-		self::$config_file = CoreDev::testdir(__FILE__) .
+		self::$config_file = CommonDev::testdir(__FILE__) .
 			'/zapstore-sql.json';
 		self::$args = prepare_config(
 			static::$engine, self::$config_file);

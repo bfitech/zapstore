@@ -5,7 +5,7 @@ require_once __DIR__ . '/SQLConfig.php';
 
 
 use PHPUnit\Framework\TestCase;
-use BFITech\ZapCoreDev\CoreDev;
+use BFITech\ZapCommonDev\CommonDev;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\MySQL;
 
@@ -13,7 +13,7 @@ use BFITech\ZapStore\MySQL;
 class MySQLTest extends TestCase {
 
 	public function test_mysql() {
-		$testdir = CoreDev::testdir(__FILE__);
+		$testdir = CommonDev::testdir(__FILE__);
 		$logfile = $testdir . '/zapstore-sql.log';
 		$cnffile = $testdir . '/zapstore-sql.json';
 		$logger = new Logger(Logger::ERROR, $logfile);

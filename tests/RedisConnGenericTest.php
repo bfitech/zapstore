@@ -2,7 +2,7 @@
 
 
 use PHPUnit\Framework\TestCase;
-use BFITech\ZapCoreDev\CoreDev;
+use BFITech\ZapCommonDev\CommonDev;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\RedisConn as ZapRedis;
 use BFITech\ZapStore\RedisError as ZapRedisErr;
@@ -19,7 +19,7 @@ class RedisConnGenericTest extends TestCase {
 	public static $logger;
 
 	public static function setUpBeforeClass() {
-		$logfile = CoreDev::testdir(__FILE__) .
+		$logfile = CommonDev::testdir(__FILE__) .
 			'/zapstore-redis.log';
 		self::$logger = new Logger(Logger::DEBUG, $logfile);
 	}
