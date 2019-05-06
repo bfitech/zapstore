@@ -33,7 +33,7 @@ class SQLError extends \Exception {
 	 * Constructor.
 	 */
 	public function __construct(
-		$code, $message, $stmt=null, $args=[]
+		int $code, string $message, string $stmt=null, array $args=[]
 	) {
 		$this->code = $code;
 		$this->message = $message;
@@ -128,7 +128,7 @@ class SQLUtils {
 	/**
 	 * SQL datetime fragment.
 	 */
-	public function stmt_fragment_datetime($delta, $type) {
+	public function stmt_fragment_datetime($delta, string $type) {
 		$sign = $delta >= 0 ? '+' : '-';
 		$delta = abs($delta);
 		$date = '';
@@ -230,7 +230,7 @@ class SQL extends SQLUtils {
 	 * @param array $params Connection dict.
 	 * @param Logger $logger Logger instance.
 	 */
-	public function __construct($params, Logger $logger=null) {
+	public function __construct(array $params, Logger $logger=null) {
 
 		self::$logger = $logger ? $logger : new Logger();
 		self::$logger->debug("SQL: object instantiated.");
@@ -336,7 +336,7 @@ class SQL extends SQLUtils {
 	 * @param array $args Dict of parameters for $part, for 'datetime'
 	 *     only.
 	 */
-	public function stmt_fragment($part, $args=[]) {
+	public function stmt_fragment(string $part, array $args=[]) {
 		$type = $this->dbtype;
 		if ($part == 'engine') {
 			if ($type == 'mysql')
@@ -369,7 +369,7 @@ class SQL extends SQLUtils {
 	 *     regardless the logging state. The fix must be in Logger
 	 *     class itself where logging state must be exposed.
 	 */
-	public function table_exists($table) {
+	public function table_exists(string $table) {
 		# we can't use placeholder for table name
 		if (!preg_match('!^[0-9a-z_]+$!i', $table))
 			return false;
@@ -384,7 +384,7 @@ class SQL extends SQLUtils {
 	/**
 	 * Prepare and execute statement.
 	 */
-	private function prepare_statement($stmt, $args=[]) {
+	private function prepare_statement(string $stmt, array $args=[]) {
 		if (!self::get_connection()) {
 			$verified_params = self::get_connection_params();
 			unset($verified_params['dbpass']);
@@ -438,7 +438,9 @@ class SQL extends SQLUtils {
 	 *     arguments are cast properly before usage.
 	 * @see https://archive.fo/vKBEz#selection-449.0-454.0
 	 */
-	final public function query($stmt, $args=[], $multiple=null) {
+	final public function query(
+		string $stmt, array $args=[], bool $multiple=null
+	) {
 		$pstmt = $this->prepare_statement($stmt, $args);
 		$res = $multiple
 			? $pstmt->fetchAll(\PDO::FETCH_ASSOC)
@@ -477,7 +479,7 @@ class SQL extends SQLUtils {
 	 *     can be used for later processing. If `$stmt` is a SELECT
 	 *     statement, rows can be fetched from this.
 	 */
-	final public function query_raw($stmt, $args=[]) {
+	final public function query_raw(string $stmt, array $args=[]) {
 		$pstmt = $this->prepare_statement($stmt, $args);
 		self::$logger->info(sprintf(
 			"SQL: query raw ok: %s.", $stmt));
@@ -498,8 +500,9 @@ class SQL extends SQLUtils {
 	 * @return int|array Last insert ID or IDs on success. Exception
 	 *     thrown on error.
 	 */
-	final public function insert($table, $args=[], $pkey=null) {
-
+	final public function insert(
+		string $table, array $args=[], string $pkey=null
+	) {
 		$keys = $vals = [];
 		$keys = array_keys($args);
 		$vals = array_fill(0, count($args), '?');
@@ -533,7 +536,9 @@ class SQL extends SQLUtils {
 	 * @param array $args Dict of what to UPDATE.
 	 * @param array $where Dict of WHERE to UPDATE.
 	 */
-	final public function update($table, $args, $where=[]) {
+	final public function update(
+		string $table, array $args, array $where=[]
+	) {
 		$pair_args = $params = [];
 		foreach ($args as $key => $val) {
 			$pair_args[] = "{$key}=?";
@@ -566,7 +571,7 @@ class SQL extends SQLUtils {
 	 * @param string $table Table name.
 	 * @param array $where Dict of WHERE to delete.
 	 */
-	final public function delete($table, $where=[]) {
+	final public function delete(string $table, array $where=[]) {
 		$stmt = "DELETE FROM $table";
 		if ($where) {
 			$pair_wheres = [];
