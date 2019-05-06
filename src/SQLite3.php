@@ -20,7 +20,7 @@ class SQLite3 extends SQL {
 	 *     omitted.
 	 * @param Logger $logger Logger instance.
 	 */
-	public function __construct($params, Logger $logger=null) {
+	public function __construct(array $params, Logger $logger=null) {
 		$params['dbtype'] = 'sqlite3';
 		parent::__construct($params, $logger);
 	}
