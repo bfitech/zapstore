@@ -272,6 +272,8 @@ class SQL extends SQLUtils {
 	 * Open PDO connection.
 	 */
 	private function open_pdo_connection() {
+		$verified_params = self::get_connection_params();
+		unset($verified_params['dbpass']);
 		try {
 			$connection = in_array(
 					$this->dbtype, ['sqlite3', 'pgsql'])
@@ -282,11 +284,11 @@ class SQL extends SQLUtils {
 			self::set_connection($connection);
 			self::$logger->debug(sprintf(
 				"SQL: connection opened: '%s'.",
-				json_encode(self::get_connection_params())));
+				json_encode($verified_params)));
 		} catch (\PDOException $e) {
 			self::$logger->error(sprintf(
 				"SQL: connection failed: '%s'.",
-				json_encode(self::get_connection_params())));
+				json_encode($verified_params)));
 			throw new SQLError(SQLError::CONNECTION_ERROR,
 				$this->dbtype . " connection error.");
 		}
@@ -384,9 +386,11 @@ class SQL extends SQLUtils {
 	 */
 	private function prepare_statement($stmt, $args=[]) {
 		if (!self::get_connection()) {
+			$verified_params = self::get_connection_params();
+			unset($verified_params['dbpass']);
 			self::$logger->error(sprintf(
 				"SQL: connection failed: '%s'.",
-				json_encode(self::get_connection_params())));
+				json_encode($verified_params)));
 			throw new SQLError(SQLError::CONNECTION_ERROR,
 				$this->dbtype . " connection error.");
 		}

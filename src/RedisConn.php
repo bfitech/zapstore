@@ -44,7 +44,6 @@ class RedisError extends \Exception {
 class RedisConn {
 
 	private $redistype = null;
-	private $redisscheme = 'tcp';
 	private $redishost = 'localhost';
 	private $redisport = 6379;
 	private $redispassword = null;
@@ -160,6 +159,8 @@ class RedisConn {
 	 * Throw exception on failing connection.
 	 */
 	private function connection_open_fail($msg='') {
+		$verified_params = $this->verified_params;
+		unset($verified_params['redispassword']);
 		$logline = sprintf('Redis: %s connection failed',
 			$this->redistype);
 		if ($msg)
@@ -174,9 +175,11 @@ class RedisConn {
 	 * Log on successful connection.
 	 */
 	private function connection_open_ok() {
+		$verified_params = $this->verified_params;
+		unset($verified_params['redispassword']);
 		self::$logger->info(sprintf(
 			"Redis: connection opened. <- '%s'.",
-			json_encode($this->verified_params)));
+			json_encode($verified_params)));
 	}
 
 	/**
