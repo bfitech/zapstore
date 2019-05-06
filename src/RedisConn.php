@@ -63,7 +63,7 @@ class RedisConn {
 	 * @param array $params Connection dict.
 	 * @param Logger $logger Logger instance.
 	 */
-	public function __construct($params, Logger $logger=null) {
+	public function __construct(array $params, Logger $logger=null) {
 
 		self::$logger = $logger ? $logger : new Logger();
 		self::$logger->debug("Redis: object instantiated.");
@@ -158,7 +158,7 @@ class RedisConn {
 	/**
 	 * Throw exception on failing connection.
 	 */
-	private function connection_open_fail($msg='') {
+	private function connection_open_fail(string $msg='') {
 		$verified_params = $this->verified_params;
 		unset($verified_params['redispassword']);
 		$logline = sprintf('Redis: %s connection failed',
@@ -199,7 +199,9 @@ class RedisConn {
 	 *     @see https://git.io/vHJhl.
 	 * @return bool True if the command is successful.
 	 */
-	final public function set($key, $value, $options=null) {
+	final public function set(
+		string $key, string $value, $options=null
+	) {
 		$res = $this->redistype == 'redis'
 			? $this->connection->set($key, $value, $options)
 			: $this->connection->set($key, $value);
@@ -222,7 +224,9 @@ class RedisConn {
 	 *     successfully, 0 if the value is already present and replaced,
 	 *     false on error.
 	 */
-	final public function hset($key, $hkey, $value) {
+	final public function hset(
+		string $key, string $hkey, string $value
+	) {
 		$res = $this->connection->hset($key, $hkey, $value);
 		$res_log = $res === false ? 'fail' : 'ok';
 		self::$logger->info(sprintf(
@@ -263,7 +267,7 @@ class RedisConn {
 	 * @param integer $ttl The key's remaining ttl, in seconds.
 	 * @return bool True on success, false otherwise.
 	 */
-	final public function expire($key, $ttl) {
+	final public function expire(string $key, int $ttl) {
 		$method = 'setTimeout';
 		if ($this->redistype == 'predis')
 			$method = 'expire';
@@ -283,7 +287,7 @@ class RedisConn {
 	 *     seconds after Unix epoch.
 	 * @return bool True on suceess, false otherwise.
 	 */
-	final public function expireat($key, $ttl) {
+	final public function expireat(string $key, int $ttl) {
 		$res = $this->connection->expireat($key, $ttl);
 		self::$logger->info(sprintf(
 			"Redis: expireat %s: %s.", $key, $ttl));
@@ -299,7 +303,7 @@ class RedisConn {
 	 * @return string|bool If key doesn't exist, false is returned.
 	 *     Otherwise, the value related to this key is returned.
 	 */
-	final public function get($key) {
+	final public function get(string $key) {
 		$res = $this->connection->get($key);
 		self::$logger->info(sprintf(
 			"Redis: get %s: '%s'.", $key, $res));
@@ -319,7 +323,7 @@ class RedisConn {
 	 * @return string The value, if the command executed successfully.
 	 *     False otherwise.
 	 */
-	final public function hget($key, $hkey=null) {
+	final public function hget(string $key, string $hkey=null) {
 		$res = $this->connection->hget($key, $hkey);
 		self::$logger->info(sprintf(
 			"Redis: hget %s.%s: '%s'.", $key, $hkey, $res));
@@ -335,7 +339,7 @@ class RedisConn {
 	 * @return long The time to live in seconds. If the key has no ttl,
 	 *     -1 will be returned, and -2 if the key doesn't exist.
 	 */
-	final public function ttl($key) {
+	final public function ttl(string $key) {
 		$res = $this->connection->ttl($key);
 		self::$logger->info(sprintf(
 			"Redis: ttl %s: %s.", $key, $res));
@@ -353,7 +357,7 @@ class RedisConn {
 	 *     fraction.
 	 * @return int|float Redis server time in Unix epoch.
 	 */
-	final public function time($with_mcs=false) {
+	final public function time(bool $with_mcs=false) {
 		$time = $this->connection->time();
 		if (!$with_mcs)
 			return $time[0];
