@@ -10,8 +10,8 @@
     }
   ],
   "require": {
-    "php": ">=5.5 <7.2",
-    "bfitech/zapcore": "~1.3.7"
+    "php": ">=7.0 <7.3",
+    "bfitech/zapcore": "~2.0.0"
   },
   "require-dev": {
     "ext-sqlite3": "*",
@@ -22,7 +22,7 @@
     "ext-pdo_pgsql": "*",
     "ext-redis" : "*",
     "predis/predis": "~1.1.1",
-    "phpunit/phpunit": "~4.8"
+    "phpunit/phpunit": "6.*"
   },
   "suggest": {
     "bfitech/zapstore-sqlite3": "SQLite3-specific support.",
@@ -38,12 +38,12 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "BFITech\\ZapCommonDev\\": "vendor/bfitech/zapcore/dev"
+      "BFITech\\ZapCoreDev\\": "vendor/bfitech/zapcore/dev"
     }
   },
   "extra": {
     "branch-alias": {
-      "dev-master": "1.3.x-dev"
+      "dev-master": "2.0.x-dev"
     }
   }
 }

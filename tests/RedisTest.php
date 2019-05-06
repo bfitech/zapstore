@@ -5,7 +5,7 @@ require_once __DIR__ . '/RedisConfig.php';
 
 
 use PHPUnit\Framework\TestCase;
-use BFITech\ZapCommonDev\CommonDev;
+use BFITech\ZapCoreDev\RouterDev;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\Redis;
 
@@ -13,7 +13,7 @@ use BFITech\ZapStore\Redis;
 class RedisTest extends TestCase {
 
 	public function test_redis() {
-		$testdir = CommonDev::testdir(__FILE__);
+		$testdir = RouterDev::testdir();
 		$logfile = $testdir . '/zapstore-redis.log';
 		$cnffile = $testdir . '/zapstore-redis.json';
 		$logger = new Logger(Logger::ERROR, $logfile);

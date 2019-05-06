@@ -2,7 +2,7 @@
 
 
 use PHPUnit\Framework\TestCase;
-use BFITech\ZapCommonDev\CommonDev;
+use BFITech\ZapCoreDev\RouterDev;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\SQL;
 use BFITech\ZapStore\SQLError;
@@ -19,7 +19,7 @@ class SQLGenericTest extends TestCase {
 	public static $logger;
 
 	public static function setUpBeforeClass() {
-		$logfile = CommonDev::testdir(__FILE__) .
+		$logfile = RouterDev::testdir() .
 			'/zapstore-sql.log';
 		self::$logger = new Logger(Logger::DEBUG, $logfile);
 	}
