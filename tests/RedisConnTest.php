@@ -1,12 +1,11 @@
 <?php
 
 
-require_once __DIR__ . '/RedisConfig.php';
+require_once __DIR__ . '/Common.php';
 
 
 use PHPUnit\Framework\TestCase;
-use BFITech\ZapCoreDev\RouterDev;
-use BFITech\ZapCore\Logger as Logger;
+use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\RedisConn as ZapRedis;
 use BFITech\ZapStore\RedisError as ZapRedisErr;
 use BFITech\ZapStore\Predis;
@@ -32,12 +31,12 @@ class RedisConnTest extends TestCase {
 	public static $engine = null;
 
 	public static function setUpBeforeClass() {
-		self::$config_file = RouterDev::testdir() .
-			'/zapstore-redis.json';
+		$testdir = testdir();
+		self::$config_file = $testdir . '/zapstore-redis.json';
 		self::$args = prepare_config_redis(
 			static::$engine, self::$config_file);
 
-		$logfile = RouterDev::testdir() . '/zapstore-redis.log';
+		$logfile = $testdir . '/zapstore-redis.log';
 		if (file_exists($logfile))
 			@unlink($logfile);
 		self::$logger = new Logger(Logger::DEBUG, $logfile);

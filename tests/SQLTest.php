@@ -1,11 +1,10 @@
 <?php
 
 
-require_once __DIR__ . '/SQLConfig.php';
+require_once __DIR__ . '/Common.php';
 
 
 use PHPUnit\Framework\TestCase;
-use BFITech\ZapCoreDev\RouterDev;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\MySQL;
 use BFITech\ZapStore\PgSQL;
@@ -36,12 +35,12 @@ class SQLTest extends TestCase {
 	private $time_stmt_test = null;
 
 	public static function setUpBeforeClass() {
-		self::$config_file = RouterDev::testdir() .
+		self::$config_file = testdir() .
 			'/zapstore-sql.json';
-		self::$args = prepare_config(
+		self::$args = prepare_config_sql(
 			static::$engine, self::$config_file);
 
-		$logfile = RouterDev::testdir() . '/zapstore-sql.log';
+		$logfile = testdir() . '/zapstore-sql.log';
 		if (file_exists($logfile))
 			@unlink($logfile);
 		self::$logger = new Logger(Logger::DEBUG, $logfile);
