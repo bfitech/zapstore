@@ -78,8 +78,7 @@ abstract class SQLConn {
 	 * Open PDO connection.
 	 */
 	private function open_pdo_connection() {
-		$dbtype = $dbhost = $dbport = null;
-		$dbuser = $dbpass = $dbname = null;
+		$dbtype = $dbuser = $dbpass = null;
 		extract($this->verified_params);
 
 		$safe_params = $this->get_safe_params();
