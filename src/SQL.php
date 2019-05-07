@@ -4,131 +4,86 @@
 namespace BFITech\ZapStore;
 
 
+use BFITech\ZapCore\Common;
 use BFITech\ZapCore\Logger;
 
 
 /**
- * SQL exception class.
+ * SQL class.
  */
-class SQLError extends \Exception {
-
-	/** Database not supported. */
-	const DBTYPE_ERROR = 0x10;
-	/** Connection arguments invalid. */
-	const CONNECTION_ARGS_ERROR = 0x20;
-	/** Connection failed. */
-	const CONNECTION_ERROR = 0x30;
-	/** SQL execution failed. */
-	const EXECUTION_ERROR = 0x40;
-
-	/** Default errno. */
-	public $code = 0;
-	/** Default errmsg. */
-	public $message = null;
-
-	private $stmt = null;
-	private $args = [];
+class SQL extends SQLConn {
 
 	/**
 	 * Constructor.
-	 */
-	public function __construct(
-		int $code, string $message, string $stmt=null, array $args=[]
-	) {
-		$this->code = $code;
-		$this->message = $message;
-		$this->stmt = $stmt;
-		$this->args = $args;
-		parent::__construct($message, $code, null);
-	}
-
-	/**
-	 * Get SQL statement from exception.
-	 */
-	public function getStmt() {
-		return $this->stmt;
-	}
-
-	/**
-	 * Get SQL parameters from exception.
-	 */
-	public function getArgs() {
-		return $this->args;
-	}
-
-}
-
-
-/**
- * SQL Utilities
- */
-class SQLUtils {
-
-	private $verified_params = null;
-	private $connection = null;
-	private $connection_string = '';
-
-	/* set properties */
-
-	/**
-	 * Set Connection
 	 *
-	 * @param Connection $connection.
+	 * @param array $params Connection dict.
+	 * @param Logger $logger Logger instance.
 	 */
-	public function set_connection($connection=null) {
-		$this->connection = $connection;
+	public function __construct(array $params, Logger $logger=null) {
+		$this->open($params, $logger ?? new Logger);
 	}
 
 	/**
-	 * Set Connection String
+	 * Get Unix timestamp from database server.
 	 *
-	 * @param string $connection_string.
+	 * @return int Unix epoch.
 	 */
-	public function set_connection_string(string $connection_string) {
-		$this->connection_string = $connection_string;
+	final public function time() {
+		$type = $this->get_dbtype();
+		if ($type == 'pgsql')
+			return $this->query(
+				"SELECT EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now"
+			)['now'];
+		if ($type == 'mysql')
+			return $this->query(
+				"SELECT UNIX_TIMESTAMP() AS now")['now'];
+		return $this->query(
+			"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now"
+		)['now'];
 	}
 
 	/**
-	 * Set Connection Params
+	 * SQL statement fragment.
 	 *
-	 * @param array $verified_params.
+	 * @param string $part A part sensitive to the database being used,
+	 *     one of these: 'engine', 'index', 'datetime'.
+	 * @param array $args Dict of parameters for $part, for 'datetime'
+	 *     only.
+	 * @return string Fragment of database-sensitive SQL statement
+	 *     fragment.
 	 */
-	public function set_connection_params(array $verified_params=null) {
-		$this->verified_params = $verified_params;
-	}
-
-	/* get properties */
-
-	/**
-	 * Retrieve connection.
-	 *
-	 * Useful for checking whether connection is open and other
-	 * things, e.g. creating custom functions on SQLite3.
-	 */
-	public function get_connection() {
-		return $this->connection;
-	}
-
-	/**
-	 * Retrieve formatted connection string.
-	 *
-	 * Use this, e.g. for dblink connection on Postgres.
-	 */
-	public function get_connection_string() {
-		return $this->connection_string;
-	}
-
-	/**
-	 * Retrive successful connection parameters.
-	 */
-	public function get_connection_params() {
-		return $this->verified_params;
+	public function stmt_fragment(string $part, array $args=[]) {
+		$type = $this->get_dbtype();
+		if ($part == 'engine') {
+			if ($type == 'mysql')
+				# we only intend to support FOREIGN KEY-capable engines
+				return "ENGINE=InnoDB";
+			return '';
+		}
+		if ($part == "index") {
+			if ($type == 'pgsql')
+				return 'SERIAL PRIMARY KEY';
+			if ($type == 'mysql')
+				return 'INTEGER PRIMARY KEY AUTO_INCREMENT';
+			return 'INTEGER PRIMARY KEY AUTOINCREMENT';
+		}
+		if ($part == 'datetime') {
+			$delta = 0;
+			if ($args && isset($args['delta']))
+				$delta = (int)$args['delta'];
+			return $this->stmt_fragment_datetime($delta, $type);
+		}
+		return "";
 	}
 
 	/**
 	 * SQL datetime fragment.
+	 *
+	 * @param int $delta Delta time, in second.
+	 * @return string Delta time clause for use in SQL statements.
 	 */
-	public function stmt_fragment_datetime($delta, string $type) {
+	public function stmt_fragment_datetime(int $delta) {
+		$type = $this->get_dbtype();
 		$sign = $delta >= 0 ? '+' : '-';
 		$delta = abs($delta);
 		$date = '';
@@ -156,224 +111,6 @@ class SQLUtils {
 	}
 
 	/**
-	 * Verify and format connection string.
-	 */
-	public function format_connection_string(
-		string $dbtype, string $dbhost=null, string $dbport=null,
-		string $dbuser=null, string $dbpass=null, string $dbname=null,
-		Logger $logger
-	) {
-		if (!in_array($dbtype, ['sqlite3', 'mysql', 'pgsql'])) {
-			self::set_connection_params(null);
-			$logger->error(sprintf(
-				"SQL: database not supported: '%s'.",
-				$dbtype));
-			throw new SQLError(SQLError::DBTYPE_ERROR,
-				$dbtype . " not supported.");
-		}
-
-		if ($dbtype == 'sqlite3') {
-			self::set_connection_string('sqlite:' . $dbname);
-			return self::get_connection_string();
-		}
-
-		if (!$dbuser) {
-			self::set_connection_params(null);
-			$logger->error(
-				"SQL: param not supplied: 'dbuser'.");
-			throw new SQLError(
-				SQLError::CONNECTION_ARGS_ERROR,
-				"'dbuser' not supplied.");
-		}
-
-		$cstr = sprintf("%s:dbname=%s", $dbtype, $dbname);
-		if ($dbhost) {
-			$cstr .= sprintf(';host=%s', $dbhost);
-			if ($dbport)
-				$cstr .= sprintf(';port=%s', $dbport);
-		}
-
-		if ($dbtype == 'mysql') {
-			# mysql uses dbuser and dbpass on PDO constructor
-			self::set_connection_string($cstr);
-			return self::get_connection_string();
-		}
-
-		$cstr .= sprintf(";user=%s", $dbuser);
-		if ($dbpass)
-			$cstr .= sprintf(";password=%s", $dbpass);
-		self::set_connection_string($cstr);
-		return self::get_connection_string();
-	}
-
-}
-
-
-/**
- * SQL class.
- */
-class SQL extends SQLUtils {
-
-	private $dbtype = null;
-	private $dbhost = null;
-	private $dbport = null;
-	private $dbuser = null;
-	private $dbpass = null;
-	private $dbname = null;
-
-	/** Logging service. */
-	public static $logger = null;
-
-	/**
-	 * Constructor.
-	 *
-	 * @param array $params Connection dict.
-	 * @param Logger $logger Logger instance.
-	 */
-	public function __construct(array $params, Logger $logger=null) {
-
-		self::$logger = $logger ? $logger : new Logger();
-		self::$logger->debug("SQL: object instantiated.");
-
-		$verified_params = [];
-		foreach ([
-			'dbtype', 'dbhost', 'dbport',
-			'dbuser', 'dbpass', 'dbname'
-		] as $key) {
-			if (!isset($params[$key]))
-				continue;
-			if ($key == 'dbtype' && $params[$key] == 'postgresql')
-				$params[$key] = 'pgsql';
-			$this->$key = $params[$key];
-			$verified_params[$key] = $params[$key];
-		}
-
-		foreach (['dbtype', 'dbname'] as $key) {
-			if (!$this->$key) {
-				self::$logger->error(sprintf(
-					"SQL: param not supplied: '%s'.", $key));
-				throw new SQLError(
-					SQLError::CONNECTION_ARGS_ERROR,
-					sprintf("'%s' not supplied.", $key));
-			}
-		}
-
-		self::set_connection_params($verified_params);
-
-		self::format_connection_string(
-			$this->dbtype, $this->dbhost, $this->dbport,
-			$this->dbuser, $this->dbpass, $this->dbname,
-			self::$logger);
-
-		$this->open_pdo_connection();
-	}
-
-	/**
-	 * Copy verified params properties and obfuscate the passwoed
-	 * part. Useful for logging.
-	 */
-	private function get_safe_params() {
-		$params = self::get_connection_params();
-		$params['dbpass'] = 'XxXxXxXxXx';
-		return $params;
-	}
-
-	/**
-	 * Open PDO connection.
-	 */
-	private function open_pdo_connection() {
-		$safe_params = self::get_safe_params();
-		$log = self::$logger;
-		try {
-			$connection = in_array(
-					$this->dbtype, ['sqlite3', 'pgsql'])
-				? new \PDO(self::get_connection_string())
-				: new \PDO(
-					self::get_connection_string(),
-					$this->dbuser, $this->dbpass);
-			self::set_connection($connection);
-			$log->debug(sprintf(
-				"SQL: connection opened: '%s'.",
-				json_encode($safe_params)));
-		} catch (\PDOException $e) {
-			$log->error(sprintf(
-				"SQL: connection failed: '%s'.",
-				json_encode($safe_params)));
-			throw new SQLError(SQLError::CONNECTION_ERROR,
-				$this->dbtype . " connection error.");
-		}
-
-		self::get_connection()->setAttribute(
-			\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-
-		# set pragma for SQLite3
-		if ($this->dbtype == 'sqlite3')
-			self::get_connection()->exec("PRAGMA foreign_keys=ON");
-	}
-
-	/**
-	 * Close connection.
-	 */
-	public function close() {
-		self::set_connection(null);
-		self::set_connection_string('');
-		self::set_connection_params(null);
-		self::$logger->debug("SQL: connection closed.");
-	}
-
-	/**
-	 * Get Unix timestamp from database server.
-	 *
-	 * @return int Unix epoch.
-	 */
-	final public function time() {
-		if ($this->dbtype == 'pgsql')
-			return $this->query(
-				"SELECT EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now"
-			)['now'];
-		if ($this->dbtype == 'mysql')
-			return $this->query(
-				"SELECT UNIX_TIMESTAMP() AS now")['now'];
-		return $this->query(
-			"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now"
-		)['now'];
-	}
-
-	/**
-	 * SQL statement fragment.
-	 *
-	 * @param string $part A part sensitive to the database being used,
-	 *     one of these: 'engine', 'index', 'datetime'.
-	 * @param array $args Dict of parameters for $part, for 'datetime'
-	 *     only.
-	 * @return string Fragment of database-sensitive SQL statement
-	 *     fragment.
-	 */
-	public function stmt_fragment(string $part, array $args=[]) {
-		$type = $this->dbtype;
-		if ($part == 'engine') {
-			if ($type == 'mysql')
-				# we only intent to support FOREIGN KEY-capable engines
-				return "ENGINE=InnoDB";
-			return '';
-		}
-		if ($part == "index") {
-			if ($type == 'pgsql')
-				return 'SERIAL PRIMARY KEY';
-			if ($type == 'mysql')
-				return 'INTEGER PRIMARY KEY AUTO_INCREMENT';
-			return 'INTEGER PRIMARY KEY AUTOINCREMENT';
-		}
-		if ($part == 'datetime') {
-			$delta = 0;
-			if ($args && isset($args['delta']))
-				$delta = (int)$args['delta'];
-			return self::stmt_fragment_datetime($delta, $type);
-		}
-		return "";
-	}
-
-	/**
 	 * Check if a table or view exists.
 	 *
 	 * @param string $table Table or view name.
@@ -397,16 +134,16 @@ class SQL extends SQLUtils {
 	private function prepare_statement(string $stmt, array $args=[]) {
 		$log = self::$logger;
 
-		if (!self::get_connection()) {
+		if (!$this->get_connection()) {
 			$safe_params = $this->get_safe_params();
 			$log->error(sprintf(
 				"SQL: connection failed: '%s'.",
 				json_encode($safe_params)));
 			throw new SQLError(SQLError::CONNECTION_ERROR,
-				$this->dbtype . " connection error.");
+				$this->get_dbtype() . " connection error.");
 		}
 
-		$conn = self::get_connection();
+		$conn = $this->get_connection();
 		try {
 			$pstmt = $conn->prepare($stmt);
 		} catch (\PDOException $e) {
@@ -514,6 +251,8 @@ class SQL extends SQLUtils {
 	final public function insert(
 		string $table, array $args=[], string $pkey=null
 	) {
+		$type = $this->get_dbtype();
+
 		$keys = $vals = [];
 		$keys = array_keys($args);
 		$vals = array_fill(0, count($args), '?');
@@ -522,16 +261,16 @@ class SQL extends SQLUtils {
 		$placeholders = implode(',', $vals);
 
 		$stmt = "INSERT INTO $table ($columns) VALUES ($placeholders)";
-		if ($this->dbtype == 'pgsql')
+		if ($type == 'pgsql')
 			$stmt .= " RETURNING " . ($pkey ? $pkey : '*');
 
 		$pstmt = $this->prepare_statement($stmt, $args);
 
-		if ($this->dbtype == 'pgsql') {
+		if ($type == 'pgsql') {
 			$last = $pstmt->fetch(\PDO::FETCH_ASSOC);
 			$ret = $pkey ? $last[$pkey] : $last;
 		} else {
-			$ret = self::get_connection()->lastInsertId();
+			$ret = $this->get_connection()->lastInsertId();
 		}
 
 		self::$logger->info(sprintf(
