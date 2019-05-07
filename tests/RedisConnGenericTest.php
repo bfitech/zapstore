@@ -1,6 +1,9 @@
 <?php
 
 
+require_once __DIR__ . '/Common.php';
+
+
 use PHPUnit\Framework\TestCase;
 use BFITech\ZapCoreDev\RouterDev;
 use BFITech\ZapCore\Logger;
@@ -11,48 +14,36 @@ use BFITech\ZapStore\RedisError as ZapRedisErr;
 /**
  * Generic tests.
  *
- * This assumes all supported database drivers are installed.
- * Do not subclass this in redis-specific packages.
+ * This assumes all supported database drivers are installed
+ * and test connection is set. Do not subclass this in redis-specific
+ * packages.
  */
 class RedisConnGenericTest extends TestCase {
 
 	public static $logger;
 
 	public static function setUpBeforeClass() {
-		$logfile = RouterDev::testdir() .
+		$logfile = testdir() .
 			'/zapstore-redis.log';
 		self::$logger = new Logger(Logger::DEBUG, $logfile);
 	}
 
 	public function test_constructor() {
-		$args = [
-			'redistype' => 'redis',
-			'redishost' => '127.0.0.1',
-			'redisport' => '6379'
-		];
+		$args = prepare_config_redis('redis');
+		# fail by wrong password
+		unset($args['redispassword']);
 		try {
 			new ZapRedis($args, self::$logger);
-		} catch(ZapRedisErr $e) {
+		} catch (ZapRedisErr $e) {
 			$this->assertEquals($e->code,
 				ZapRedisErr::CONNECTION_ERROR);
 		}
 	}
 
 	private function invoke_exception($type) {
-		$config_file = RouterDev::testdir() .
-			'/zapstore-redis.json';
-		if (file_exists($config_file)) {
-			$args = json_decode(file_get_contents(
-				$config_file), true)[$type];
-		} else {
-			$args = [
-				'redistype' => $type,
-				'redishost' => '127.0.0.1',
-				'redisport' => '6379',
-			];
-		}
+		$args = prepare_config_redis($type);
 
-		# invalid database
+		# fail by invalid database
 		$args['redisdatabase'] = -1000;
 		try {
 			new ZapRedis($args, self::$logger);
@@ -60,6 +51,7 @@ class RedisConnGenericTest extends TestCase {
 			$this->assertEquals($e->code,
 				ZapRedisErr::CONNECTION_ERROR);
 		}
+
 
 		# invalid password
 		$args['redisdatabase'] = 10;

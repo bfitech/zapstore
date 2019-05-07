@@ -65,12 +65,12 @@ class RedisConn {
 	 */
 	public function __construct(array $params, Logger $logger=null) {
 
-		self::$logger = $logger ? $logger : new Logger();
+		self::$logger = $logger ?? new Logger();
 		self::$logger->debug("Redis: object instantiated.");
 
 		$verified_params = [];
 		$propkeys = [
-			'redistype', 'redisscheme', 'redishost', 'redisport',
+			'redistype', 'redishost', 'redisport',
 			'redispassword', 'redisdatabase', 'redistimeout',
 		];
 		foreach ($propkeys as $key) {
@@ -147,11 +147,7 @@ class RedisConn {
 				return $this->connection_open_fail($e->getMessage());
 			}
 		}
-		try {
-			$this->connection->ping();
-		} catch(\RedisException $e) {
-			return $this->connection_open_fail($e->getMessage());
-		}
+
 		return $this->connection_open_ok();
 	}
 

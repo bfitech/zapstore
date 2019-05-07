@@ -10,7 +10,7 @@ function testdir() {
 
 function prepare_config_sql($engine=null, $config_file=null) {
 	if (!$config_file)
-		$config_file = __DIR__ . '/zapstore-sql.json';
+		$config_file = testdir() . '/zapstore-sql.json';
 	if (file_exists($config_file)) {
 		$args = json_decode(
 			file_get_contents($config_file), true);
@@ -71,7 +71,7 @@ function prepare_config_sql($engine=null, $config_file=null) {
 
 function prepare_config_redis($engine=null, $config_file=null) {
 	if (!$config_file)
-		$config_file = __DIR__ . '/zapstore-redis.json';
+		$config_file = testdir() . '/zapstore-redis.json';
 	if (file_exists($config_file)) {
 		$args = json_decode(
 			file_get_contents($config_file), true);
