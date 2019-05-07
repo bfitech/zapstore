@@ -51,11 +51,18 @@ Find a bug? Help us fix it.
     $
     $ # coding convention compliance with phpcs
     $ composer global require squizlabs/php_codesniffer
-    $ phpcs
+    $ phpcs \
+    > --standard=./phpcs.xml \
+    > --extensions=php \
+    > --runtime-set ignore_warnings_on_exit 1 \
+    > --report-width=72 \
+    > --ignore=*/vendor/*,*/docs/* \
+    > --no-cache
+    > ./src || echo 'Boo!'
     $
     $ # static analysis with phpmd
     $ composer global require phpmd/phpmd
-    $ phpmd ./src text ./phpmd.xml
+    $ phpmd ./src text ./phpmd.xml || echo 'Boo!'
     ```
 
 6.  Push to your fork and submit a Pull Request.
