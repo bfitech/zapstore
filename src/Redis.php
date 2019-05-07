@@ -8,7 +8,7 @@ use BFITech\ZapCore\Logger;
 
 
 /**
- * PPHRedis wrapper class.
+ * PHPRedis wrapper class.
  */
 class Redis extends RedisConn {
 

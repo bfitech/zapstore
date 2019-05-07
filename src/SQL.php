@@ -269,11 +269,21 @@ class SQL extends SQLUtils {
 	}
 
 	/**
+	 * Copy verified params properties and obfuscate the passwoed
+	 * part. Useful for logging.
+	 */
+	private function get_safe_params() {
+		$params = self::get_connection_params();
+		$params['dbpass'] = 'XxXxXxXxXx';
+		return $params;
+	}
+
+	/**
 	 * Open PDO connection.
 	 */
 	private function open_pdo_connection() {
-		$verified_params = self::get_connection_params();
-		unset($verified_params['dbpass']);
+		$safe_params = self::get_safe_params();
+		$log = self::$logger;
 		try {
 			$connection = in_array(
 					$this->dbtype, ['sqlite3', 'pgsql'])
@@ -282,13 +292,13 @@ class SQL extends SQLUtils {
 					self::get_connection_string(),
 					$this->dbuser, $this->dbpass);
 			self::set_connection($connection);
-			self::$logger->debug(sprintf(
+			$log->debug(sprintf(
 				"SQL: connection opened: '%s'.",
-				json_encode($verified_params)));
+				json_encode($safe_params)));
 		} catch (\PDOException $e) {
-			self::$logger->error(sprintf(
+			$log->error(sprintf(
 				"SQL: connection failed: '%s'.",
-				json_encode($verified_params)));
+				json_encode($safe_params)));
 			throw new SQLError(SQLError::CONNECTION_ERROR,
 				$this->dbtype . " connection error.");
 		}
@@ -308,6 +318,7 @@ class SQL extends SQLUtils {
 		self::set_connection(null);
 		self::set_connection_string('');
 		self::set_connection_params(null);
+		self::$logger->debug("SQL: connection closed.");
 	}
 
 	/**
@@ -335,6 +346,8 @@ class SQL extends SQLUtils {
 	 *     one of these: 'engine', 'index', 'datetime'.
 	 * @param array $args Dict of parameters for $part, for 'datetime'
 	 *     only.
+	 * @return string Fragment of database-sensitive SQL statement
+	 *     fragment.
 	 */
 	public function stmt_fragment(string $part, array $args=[]) {
 		$type = $this->dbtype;
@@ -365,9 +378,6 @@ class SQL extends SQLUtils {
 	 *
 	 * @param string $table Table or view name.
 	 * @return bool True if table or view does exist.
-	 * @fixme This will always re-activate logging at the end,
-	 *     regardless the logging state. The fix must be in Logger
-	 *     class itself where logging state must be exposed.
 	 */
 	public function table_exists(string $table) {
 		# we can't use placeholder for table name
@@ -385,12 +395,13 @@ class SQL extends SQLUtils {
 	 * Prepare and execute statement.
 	 */
 	private function prepare_statement(string $stmt, array $args=[]) {
+		$log = self::$logger;
+
 		if (!self::get_connection()) {
-			$verified_params = self::get_connection_params();
-			unset($verified_params['dbpass']);
-			self::$logger->error(sprintf(
+			$safe_params = $this->get_safe_params();
+			$log->error(sprintf(
 				"SQL: connection failed: '%s'.",
-				json_encode($verified_params)));
+				json_encode($safe_params)));
 			throw new SQLError(SQLError::CONNECTION_ERROR,
 				$this->dbtype . " connection error.");
 		}
@@ -399,7 +410,7 @@ class SQL extends SQLUtils {
 		try {
 			$pstmt = $conn->prepare($stmt);
 		} catch (\PDOException $e) {
-			self::$logger->error(sprintf(
+			$log->error(sprintf(
 				"SQL: execution failed: %s <- '%s': %s.",
 				$stmt, json_encode($args),
 				$e->getMessage()));
@@ -413,7 +424,7 @@ class SQL extends SQLUtils {
 		try {
 			$pstmt->execute(array_values($args));
 		} catch (\PDOException $e) {
-			self::$logger->error(sprintf(
+			$log->error(sprintf(
 				"SQL: execution failed: %s <- '%s': %s.",
 				$stmt, json_encode($args),
 				$e->getMessage()));
