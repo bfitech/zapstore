@@ -23,13 +23,13 @@ function prepare_config_sql($engine=null, $config_file=null) {
 		'POSTGRES_HOST' => 'localhost',
 		'POSTGRES_PORT' => 5432,
 		'POSTGRES_USER' => 'postgres',
-		'POSTGRES_PASS' => 'XxXxXxXxX',
+		'POSTGRES_PASS' => '',
 		'POSTGRES_DB' => 'zapstore_test_db',
 
 		'MYSQL_HOST' => '127.0.0.1',
 		'MYSQL_PORT' => '3306',
 		'MYSQL_USER' => 'root',
-		'MYSQL_PASS' => 'XxXxXxXxX',
+		'MYSQL_PASS' => '',
 		'MYSQL_DB' => 'zapstore_test_db',
 	];
 	foreach ($params as $key => $val) {
