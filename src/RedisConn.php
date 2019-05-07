@@ -156,16 +156,25 @@ class RedisConn {
 	}
 
 	/**
+	 * Copy verified params properties and obfuscate the passwoed
+	 * part. Useful for logging.
+	 */
+	private function get_safe_params() {
+		$params = $this->verified_params;
+		$params['redispassword'] = 'XxXxXxXxXx';
+		return $params;
+	}
+
+	/**
 	 * Throw exception on failing connection.
 	 */
 	private function connection_open_fail(string $msg='') {
-		$verified_params = $this->verified_params;
-		unset($verified_params['redispassword']);
+		$params = $this->get_safe_params();
 		$logline = sprintf('Redis: %s connection failed',
 			$this->redistype);
 		if ($msg)
 			$logline .= ': ' . $msg;
-		$logline .= ' <- ' . json_encode($this->verified_params);
+		$logline .= ' <- ' . json_encode($params);
 		self::$logger->error($logline);
 		throw new RedisError(RedisError::CONNECTION_ERROR,
 			$logline);
@@ -175,11 +184,10 @@ class RedisConn {
 	 * Log on successful connection.
 	 */
 	private function connection_open_ok() {
-		$verified_params = $this->verified_params;
-		unset($verified_params['redispassword']);
+		$params = $this->get_safe_params();
 		self::$logger->info(sprintf(
 			"Redis: connection opened. <- '%s'.",
-			json_encode($verified_params)));
+			json_encode($params)));
 	}
 
 	/**
