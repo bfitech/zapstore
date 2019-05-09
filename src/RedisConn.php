@@ -8,38 +8,9 @@ use BFITech\ZapCore\Logger;
 
 
 /**
- * Redis exception class.
- */
-class RedisError extends \Exception {
-
-	/** Library not supported. */
-	const REDISTYPE_ERROR = 0x10;
-	/** Connection arguments invalid. */
-	const CONNECTION_ARGS_ERROR = 0x20;
-	/** Connection failed. */
-	const CONNECTION_ERROR = 0x30;
-
-	/** Default errno. */
-	public $code = 0;
-	/** Default errmsg. */
-	public $message = null;
-
-	/**
-	 * Constructor.
-	 */
-	public function __construct(
-		$code, $message
-	) {
-		$this->code = $code;
-		$this->message = $message;
-		parent::__construct($message, $code, null);
-	}
-
-}
-
-
-/**
- * RedisConn class.
+ * Redis generic class.
+ *
+ * This wraps all underlying libraries into unified interface.
  */
 class RedisConn {
 
@@ -74,21 +45,21 @@ class RedisConn {
 		foreach (['redistype', 'redishost'] as $key) {
 			if (isset($verified_params[$key]))
 				continue;
-			self::$logger->error(sprintf(
-				"Redis: param not supplied: '%s'.", $key));
-			throw new RedisError(
+			$this->throw_error(
 				RedisError::CONNECTION_ARGS_ERROR,
-				sprintf("'%s' not supplied.", $key));
+				sprintf("Redis: param not supplied: '%s'.", $key)
+			);
 		}
 
 		if (!in_array(
 			$verified_params['redistype'], ['redis', 'predis']
 		)) {
-			self::$logger->error(sprintf(
-				"Redis: redis library not supported: '%s'.",
-				$verified_params['redistype']));
-			throw new RedisError(RedisError::REDISTYPE_ERROR,
-				$verified_params['redistype'] . " not supported.");
+			$this->throw_error(
+				RedisError::REDISTYPE_ERROR,
+				sprintf(
+					"Redis: redis library not supported: '%s'.",
+					$verified_params['redistype'])
+			);
 		}
 
 		$this->verified_params = $verified_params;
@@ -96,6 +67,14 @@ class RedisConn {
 		if ($verified_params['redistype'] == 'predis')
 			return $this->connection__predis();
 		return $this->connection__redis();
+	}
+
+	/**
+	 * Write to log and throw exception on error.
+	 */
+	private function throw_error(int $errno, string $logline) {
+		self::$logger->error($logline);
+		throw new RedisError($errno, $logline);
 	}
 
 	/**
@@ -122,9 +101,7 @@ class RedisConn {
 	 */
 	private function connection__redis() {
 		$redispassword = $redisdatabase  = null;
-		$redishost = 'localhost';
-		$redisport = 6379;
-		$redistimeout = 5;
+		$redishost = $redisport = $redistimeout = null;
 		extract($this->verified_params);
 
 		$this->connection = new \Redis();
@@ -136,7 +113,7 @@ class RedisConn {
 			// @codeCoverageIgnoreStart
 			return $this->connection_open_fail();
 			// @codeCoverageIgnoreEnd
-		if ($redispassword || $redisdatabase) {
+		if ($redispassword || $redisdatabase != null) {
 			try {
 				if ($redispassword)
 					$this->connection->auth($redispassword);
@@ -151,7 +128,7 @@ class RedisConn {
 	}
 
 	/**
-	 * Copy verified params properties and obfuscate the passwoed
+	 * Copy verified params properties and obfuscate the password
 	 * part. Useful for logging.
 	 */
 	private function get_safe_params() {
@@ -162,28 +139,26 @@ class RedisConn {
 	}
 
 	/**
-	 * Throw exception on failing connection.
+	 * Write to log and throw exception on failing connection.
+	 *
+	 * @codeCoverageIgnore
 	 */
-	private function connection_open_fail(string $msg='') {
-		$params = $this->get_safe_params();
+	private function connection_open_fail(string $message='') {
 		$logline = sprintf('Redis: %s connection failed',
-			$this->verified_params['redistype']);
-		if ($msg)
-			$logline .= ': ' . $msg;
-		$logline .= ' <- ' . json_encode($params);
-		self::$logger->error($logline);
-		throw new RedisError(RedisError::CONNECTION_ERROR,
-			$logline);
+			$this->get_driver());
+		if ($message)
+			$logline .= ': ' . $message;
+		$logline .= ' <- ' . json_encode($this->get_safe_params());
+		$this->throw_error(RedisError::CONNECTION_ERROR, $logline);
 	}
 
 	/**
 	 * Log on successful connection.
 	 */
 	private function connection_open_ok() {
-		$params = $this->get_safe_params();
 		self::$logger->info(sprintf(
 			"Redis: connection opened. <- '%s'.",
-			json_encode($params)));
+			json_encode($this->get_safe_params())));
 	}
 
 	/**
@@ -206,7 +181,7 @@ class RedisConn {
 	final public function set(
 		string $key, string $value, $options=null
 	) {
-		$res = $this->verified_params['redistype'] == 'redis'
+		$res = $this->get_driver() == 'redis'
 			? $this->connection->set($key, $value, $options)
 			: $this->connection->set($key, $value);
 		$res_log = $res ? 'ok': 'fail';
@@ -272,9 +247,8 @@ class RedisConn {
 	 * @return bool True on success, false otherwise.
 	 */
 	final public function expire(string $key, int $ttl) {
-		$method = 'setTimeout';
-		if ($this->verified_params['redistype'] == 'predis')
-			$method = 'expire';
+		$method = $this->get_driver() == 'predis'
+			? 'expire' : 'setTimeout';
 		$res = $this->connection->$method($key, $ttl);
 		self::$logger->info(sprintf(
 			"Redis: expire %s: %s.", $key, $ttl));
@@ -311,10 +285,7 @@ class RedisConn {
 		$res = $this->connection->get($key);
 		self::$logger->info(sprintf(
 			"Redis: get %s: '%s'.", $key, $res));
-		if (
-			$this->verified_params['redistype'] == 'predis' &&
-			$res == null
-		)
+		if ($res === null && $this->get_driver() == 'predis')
 			$res = false;
 		return $res;
 	}
@@ -375,7 +346,7 @@ class RedisConn {
 	 * Close connection.
 	 */
 	public function close() {
-		if ($this->verified_params['redistype'] == 'redis')
+		if ($this->get_driver() == 'redis')
 			$this->connection->close();
 		$this->connection = null;
 		$this->verified_params = null;
@@ -383,15 +354,13 @@ class RedisConn {
 
 	/* get properties */
 
-	public function get_driver() {
-		return $this->verified_params['redistype'];
-	}
-
 	/**
 	 * Retrieve connection.
 	 *
 	 * Use this to do anything with the connection without the help of
 	 * the wrappers this class provides.
+	 *
+	 * @return object Redis connection.
 	 */
 	public function get_connection() {
 		return $this->connection;
@@ -399,9 +368,22 @@ class RedisConn {
 
 	/**
 	 * Retrive successful connection parameters.
+	 *
+	 * @return array Dict of verified connection parameters.
 	 */
 	public function get_connection_params() {
 		return $this->verified_params;
+	}
+
+	/**
+	 * Get driver, i.e. the underlying library to connect to
+	 * the backend.
+	 *
+	 * @return string 'redis' or 'predis' or null, depending on
+	 *     the setup by constructor.
+	 */
+	public function get_driver() {
+		return $this->verified_params['redistype'];
 	}
 
 }

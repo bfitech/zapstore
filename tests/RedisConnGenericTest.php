@@ -14,8 +14,8 @@ use BFITech\ZapStore\RedisError as ZapRedisErr;
  * Generic tests.
  *
  * This assumes all supported database drivers are installed
- * and test connection is set. Do not subclass this in redis-specific
- * packages.
+ * and test connection is properly set. Do not subclass this in
+ * redis-specific packages.
  */
 class RedisConnGenericTest extends TestCase {
 
@@ -28,15 +28,16 @@ class RedisConnGenericTest extends TestCase {
 	}
 
 	public function test_constructor() {
+		$this->expectException(ZapRedisErr::class);
 		$args = prepare_config_redis('redis');
+
+		# success
+		$red = new ZapRedis($args, self::$logger);
+		$this->assertEquals($red->get_driver(), 'redis');
+
 		# fail by wrong password
 		unset($args['redispassword']);
-		try {
-			new ZapRedis($args, self::$logger);
-		} catch (ZapRedisErr $e) {
-			$this->assertEquals($e->code,
-				ZapRedisErr::CONNECTION_ERROR);
-		}
+		new ZapRedis($args, self::$logger);
 	}
 
 	private function invoke_exception($type) {
@@ -50,7 +51,6 @@ class RedisConnGenericTest extends TestCase {
 			$this->assertEquals($e->code,
 				ZapRedisErr::CONNECTION_ERROR);
 		}
-
 
 		# invalid password
 		$args['redisdatabase'] = 10;
@@ -67,7 +67,6 @@ class RedisConnGenericTest extends TestCase {
 		$redis = new ZapRedis($args, self::$logger);
 		$redis->close();
 		$this->assertEquals($redis->get_connection(), null);
-
 	}
 
 	public function test_exception() {
