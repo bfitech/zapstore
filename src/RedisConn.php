@@ -131,7 +131,7 @@ class RedisConn {
 		# @note: This emits warning on failure instead of throwing
 		# exception, hence the @ sign.
 		if (!@$this->connection->connect(
-			$redishost, $redisport,$redistimeout
+			$redishost, $redisport, $redistimeout
 		))
 			// @codeCoverageIgnoreStart
 			return $this->connection_open_fail();
@@ -156,7 +156,8 @@ class RedisConn {
 	 */
 	private function get_safe_params() {
 		$params = $this->verified_params;
-		$params['redispassword'] = 'XxXxXxXxXx';
+		if (isset($params['redispassword']))
+			$params['redispassword'] = 'XxXxXxXxXx';
 		return $params;
 	}
 
@@ -381,6 +382,10 @@ class RedisConn {
 	}
 
 	/* get properties */
+
+	public function get_driver() {
+		return $this->verified_params['redistype'];
+	}
 
 	/**
 	 * Retrieve connection.
