@@ -43,15 +43,7 @@ class RedisError extends \Exception {
  */
 class RedisConn {
 
-	private $redistype = null;
-	private $redishost = 'localhost';
-	private $redisport = 6379;
-	private $redispassword = null;
-	private $redisdatabase = null;
-	private $redistimeout = 5;
-
 	private $verified_params = null;
-
 	private $connection = null;
 
 	/** Logging service. */
@@ -76,13 +68,11 @@ class RedisConn {
 		foreach ($propkeys as $key) {
 			if (!isset($params[$key]))
 				continue;
-			$this->$key = $params[$key];
 			$verified_params[$key] = $params[$key];
 		}
-		$this->verified_params = $verified_params;
 
 		foreach (['redistype', 'redishost'] as $key) {
-			if ($this->$key)
+			if (isset($verified_params[$key]))
 				continue;
 			self::$logger->error(sprintf(
 				"Redis: param not supplied: '%s'.", $key));
@@ -91,15 +81,19 @@ class RedisConn {
 				sprintf("'%s' not supplied.", $key));
 		}
 
-		if (!in_array($this->redistype, ['redis', 'predis'])) {
+		if (!in_array(
+			$verified_params['redistype'], ['redis', 'predis']
+		)) {
 			self::$logger->error(sprintf(
 				"Redis: redis library not supported: '%s'.",
-				$this->redistype));
+				$verified_params['redistype']));
 			throw new RedisError(RedisError::REDISTYPE_ERROR,
-				$this->redistype . " not supported.");
+				$verified_params['redistype'] . " not supported.");
 		}
 
-		if ($this->redistype == 'predis')
+		$this->verified_params = $verified_params;
+
+		if ($verified_params['redistype'] == 'predis')
 			return $this->connection__predis();
 		return $this->connection__redis();
 	}
@@ -110,9 +104,9 @@ class RedisConn {
 	private function connection__predis() {
 		$args = [];
 		foreach (array_keys($this->verified_params) as $key) {
-			if ($key == 'redistype' || !$this->$key)
+			if ($key == 'redistype' || !$this->verified_params[$key])
 				continue;
-			$args[substr($key, 5)] = $this->$key;
+			$args[substr($key, 5)] = $this->verified_params[$key];
 		}
 		try {
 			$this->connection = new \Predis\Client($args);
@@ -127,22 +121,27 @@ class RedisConn {
 	 * Open connection with ext-redis.
 	 */
 	private function connection__redis() {
+		$redispassword = $redisdatabase  = null;
+		$redishost = 'localhost';
+		$redisport = 6379;
+		$redistimeout = 5;
+		extract($this->verified_params);
+
 		$this->connection = new \Redis();
 		# @note: This emits warning on failure instead of throwing
 		# exception, hence the @ sign.
 		if (!@$this->connection->connect(
-			$this->redishost, $this->redisport,
-			$this->redistimeout
+			$redishost, $redisport,$redistimeout
 		))
 			// @codeCoverageIgnoreStart
 			return $this->connection_open_fail();
 			// @codeCoverageIgnoreEnd
-		if ($this->redispassword || $this->redisdatabase) {
+		if ($redispassword || $redisdatabase) {
 			try {
-				if ($this->redispassword)
-					$this->connection->auth($this->redispassword);
-				if ($this->redisdatabase)
-					$this->connection->select($this->redisdatabase);
+				if ($redispassword)
+					$this->connection->auth($redispassword);
+				if ($redisdatabase)
+					$this->connection->select($redisdatabase);
 			} catch(\RedisException $e) {
 				return $this->connection_open_fail($e->getMessage());
 			}
@@ -167,7 +166,7 @@ class RedisConn {
 	private function connection_open_fail(string $msg='') {
 		$params = $this->get_safe_params();
 		$logline = sprintf('Redis: %s connection failed',
-			$this->redistype);
+			$this->verified_params['redistype']);
 		if ($msg)
 			$logline .= ': ' . $msg;
 		$logline .= ' <- ' . json_encode($params);
@@ -206,7 +205,7 @@ class RedisConn {
 	final public function set(
 		string $key, string $value, $options=null
 	) {
-		$res = $this->redistype == 'redis'
+		$res = $this->verified_params['redistype'] == 'redis'
 			? $this->connection->set($key, $value, $options)
 			: $this->connection->set($key, $value);
 		$res_log = $res ? 'ok': 'fail';
@@ -273,7 +272,7 @@ class RedisConn {
 	 */
 	final public function expire(string $key, int $ttl) {
 		$method = 'setTimeout';
-		if ($this->redistype == 'predis')
+		if ($this->verified_params['redistype'] == 'predis')
 			$method = 'expire';
 		$res = $this->connection->$method($key, $ttl);
 		self::$logger->info(sprintf(
@@ -311,7 +310,10 @@ class RedisConn {
 		$res = $this->connection->get($key);
 		self::$logger->info(sprintf(
 			"Redis: get %s: '%s'.", $key, $res));
-		if ($this->redistype == 'predis' && $res == null)
+		if (
+			$this->verified_params['redistype'] == 'predis' &&
+			$res == null
+		)
 			$res = false;
 		return $res;
 	}
@@ -372,7 +374,7 @@ class RedisConn {
 	 * Close connection.
 	 */
 	public function close() {
-		if ($this->redistype == 'redis')
+		if ($this->verified_params['redistype'] == 'redis')
 			$this->connection->close();
 		$this->connection = null;
 		$this->verified_params = null;
