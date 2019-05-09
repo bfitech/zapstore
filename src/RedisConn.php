@@ -23,7 +23,13 @@ class RedisConn {
 	/**
 	 * Constructor.
 	 *
-	 * @param array $params Connection dict.
+	 * @param array $params Connection dict with keys:<br>
+	 *     - `redistype`, one of: `redis`, `predis`
+	 *     - `redishost`, TCP only
+	 *     - `redisport`, do not set to use default
+	 *     - `redispassword`, do not for passwordless server
+	 *     - `redisdatabase`, do not set to use default
+	 *     - `redistimeout`, do not set to use default
 	 * @param Logger $logger Logger instance.
 	 */
 	public function __construct(array $params, Logger $logger=null) {
@@ -379,8 +385,8 @@ class RedisConn {
 	 * Get driver, i.e. the underlying library to connect to
 	 * the backend.
 	 *
-	 * @return string 'redis' or 'predis' or null, depending on
-	 *     the setup by constructor.
+	 * @return string 'redis' or 'predis', depending on the setup by
+	 *     constructor.
 	 */
 	public function get_driver() {
 		return $this->verified_params['redistype'];
