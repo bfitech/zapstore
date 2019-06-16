@@ -23,14 +23,14 @@ function prepare_config_sql($engine=null, $config_file=null) {
 		'POSTGRES_HOST' => 'localhost',
 		'POSTGRES_PORT' => 5432,
 		'POSTGRES_USER' => 'postgres',
-		'POSTGRES_PASS' => '',
+		'POSTGRES_PASSWORD' => '',
 		'POSTGRES_DB' => 'zapstore_test_db',
 
 		'MYSQL_HOST' => '127.0.0.1',
 		'MYSQL_PORT' => '3306',
 		'MYSQL_USER' => 'root',
-		'MYSQL_PASS' => '',
-		'MYSQL_DB' => 'zapstore_test_db',
+		'MYSQL_PASSWORD' => '',
+		'MYSQL_DATABASE' => 'zapstore_test_db',
 	];
 	foreach ($params as $key => $val) {
 		$var = getenv($key);
@@ -49,7 +49,7 @@ function prepare_config_sql($engine=null, $config_file=null) {
 			'dbhost' => $POSTGRES_HOST,
 			'dbport' => $POSTGRES_PORT,
 			'dbuser' => $POSTGRES_USER,
-			'dbpass' => $POSTGRES_PASS,
+			'dbpass' => $POSTGRES_PASSWORD,
 			'dbname' => $POSTGRES_DB,
 		],
 		'mysql' => [
@@ -57,8 +57,8 @@ function prepare_config_sql($engine=null, $config_file=null) {
 			'dbhost' => $MYSQL_HOST,
 			'dbport' => $MYSQL_PORT,
 			'dbuser' => $MYSQL_USER,
-			'dbpass' => $MYSQL_PASS,
-			'dbname' => $MYSQL_DB,
+			'dbpass' => $MYSQL_PASSWORD,
+			'dbname' => $MYSQL_DATABASE,
 		],
 	];
 
