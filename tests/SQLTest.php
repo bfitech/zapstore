@@ -102,7 +102,7 @@ class SQLTest extends Common {
 			$this->time_stmt_test = $dtobj;
 
 			### mysql doesn't have function as default value
-			if ($dbtype == 'mysql')
+			if ($type == 'mysql')
 				$expire_stmt = 'CURRENT_TIMESTAMP';
 
 			# use fragment to create table, should invoke no error
