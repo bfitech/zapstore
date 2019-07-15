@@ -6,7 +6,7 @@
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = "ZapStore"
 PROJECT_NUMBER         = "2.1"
-PROJECT_BRIEF          = "A simple SQL connection wrapper."
+PROJECT_BRIEF          = "A simple database connection wrapper."
 PROJECT_LOGO           =
 OUTPUT_DIRECTORY       = ./docs
 CREATE_SUBDIRS         = YES
