@@ -38,7 +38,7 @@ abstract class Common extends TestCase {
 			'pgsql' => [
 				['dbhost', 'POSTGRES_HOST', 'localhost'],
 				['dbport', 'POSTGRES_PORT', 5432],
-				['dbuser', 'POSTGRES_USER', 'root'],
+				['dbuser', 'POSTGRES_USER', 'postgres'],
 				['dbpass', 'POSTGRES_PASSWORD', ''],
 				['dbname', 'POSTGRES_DB', 'zapstore_test_db'],
 			],
