@@ -4,22 +4,22 @@
 require_once __DIR__ . '/Common.php';
 
 
-use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\PgSQL;
 
 
-class PgSQLTest extends TestCase {
+/**
+ * Postgres-specific.
+ */
+class PgSQLTest extends Common {
 
 	public function test_pgsql() {
-		$testdir = testdir();
+		$testdir = self::tdir(__FILE__);
 		$logfile = $testdir . '/zapstore-sql.log';
-		$cnffile = $testdir . '/zapstore-sql.json';
 		$logger = new Logger(Logger::ERROR, $logfile);
-		$args = prepare_config_sql('pgsql', $cnffile);
+		$args = self::open_config('pgsql');
 		$sql = new PgSQL($args, $logger);
-		$this->assertEquals(
-			$sql->get_connection_params()['dbtype'], 'pgsql');
+		$this->eq()($sql->get_connection_params()['dbtype'], 'pgsql');
 	}
 
 }

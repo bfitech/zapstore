@@ -1,109 +1,65 @@
 <?php
 
 
-function testdir() {
-	$dir = __DIR__ . '/testdata';
-	if (!is_dir($dir))
-		mkdir($dir, 0755);
-	return $dir;
-}
+use BFITech\ZapCore\Config;
+use BFITech\ZapCoreDev\TestCase;
 
-function prepare_config_sql($engine=null, $config_file=null) {
-	if (!$config_file)
-		$config_file = testdir() . '/zapstore-sql.json';
-	if (file_exists($config_file)) {
-		$args = json_decode(
-			file_get_contents($config_file), true);
-		if ($engine)
-			return $args[$engine];
-		return $args;
+
+abstract class Common extends TestCase {
+
+	private static function config_default() {
+
+		$ref = [
+			'mysql' => [
+				['dbhost', 'MYSQL_HOST', 'localhost'],
+				['dbport', 'MYSQL_PORT', 3306],
+				['dbuser', 'MYSQL_USER', 'root'],
+				['dbpass', 'MYSQL_PASSWORD', ''],
+				['dbname', 'MYSQL_DATABASE', 'zapstore_test_db'],
+			],
+			'pgsql' => [
+				['dbhost', 'POSTGRES_HOST', 'localhost'],
+				['dbport', 'POSTGRES_PORT', 5432],
+				['dbuser', 'POSTGRES_USER', 'root'],
+				['dbpass', 'POSTGRES_PASSWORD', ''],
+				['dbname', 'POSTGRES_DB', 'zapstore_test_db'],
+			],
+			'sqlite3' => [
+				['dbname', null,
+					self::tdir(__FILE__) . '/zapstore.sq3'],
+			],
+			'redis' => [
+				['redishost', 'REDISHOST', 'localhost'],
+				['redisport', 'REDISPORT', 6379],
+				['redispassword', 'REDISPASSWORD', ''],
+				['redisdatabase', 'REDISDATABASE', 10],
+			],
+			'predis' => [
+				['redishost', 'REDISHOST', 'localhost'],
+				['redisport', 'REDISPORT', 6379],
+				['redispassword', 'REDISPASSWORD', ''],
+				['redisdatabase', 'REDISDATABASE', 10],
+			],
+		];
+		return $ref;
 	}
-	# connection parameters stub
-	$params = [
-		'POSTGRES_HOST' => 'localhost',
-		'POSTGRES_PORT' => 5432,
-		'POSTGRES_USER' => 'postgres',
-		'POSTGRES_PASSWORD' => '',
-		'POSTGRES_DB' => 'zapstore_test_db',
 
-		'MYSQL_HOST' => '127.0.0.1',
-		'MYSQL_PORT' => '3306',
-		'MYSQL_USER' => 'root',
-		'MYSQL_PASSWORD' => '',
-		'MYSQL_DATABASE' => 'zapstore_test_db',
-	];
-	foreach ($params as $key => $val) {
-		$var = getenv($key);
-		if ($var)
-			$params[$key] = $var;
+	public static function open_config($engine, $cfile=null) {
+		if ($cfile === null)
+			$cfile = self::tdir(__FILE__) . "/zapstore-$engine.json";
+		if (file_exists($cfile))
+			return (new Config($cfile))->get($engine);
+		file_put_contents($cfile, '[]');
+		$cnf = new Config($cfile);
+		foreach (self::config_default() as $section => $sval) {
+			foreach ($sval as $val) {
+				list($key, $env, $dfl) = $val;
+				$ckey = sprintf('%s.%s', $section, $key);
+				$cval = !$env ? $dfl : (getenv($env) ?? $dfl);
+				$cnf->add($ckey, $cval);
+			}
+		}
+		return $cnf->get($engine);
 	}
-	extract($params);
 
-	$args = [
-		'sqlite3' => [
-			'dbtype' => 'sqlite3',
-			'dbname' => dirname($config_file) . '/zapstore.sq3',
-		],
-		'pgsql' => [
-			'dbtype' => 'pgsql',
-			'dbhost' => $POSTGRES_HOST,
-			'dbport' => $POSTGRES_PORT,
-			'dbuser' => $POSTGRES_USER,
-			'dbpass' => $POSTGRES_PASSWORD,
-			'dbname' => $POSTGRES_DB,
-		],
-		'mysql' => [
-			'dbtype' => 'mysql',
-			'dbhost' => $MYSQL_HOST,
-			'dbport' => $MYSQL_PORT,
-			'dbuser' => $MYSQL_USER,
-			'dbpass' => $MYSQL_PASSWORD,
-			'dbname' => $MYSQL_DATABASE,
-		],
-	];
-
-	file_put_contents($config_file,
-		json_encode($args, JSON_PRETTY_PRINT));
-	if ($engine)
-		return $args[$engine];
-	return $args;
-}
-
-function prepare_config_redis($engine=null, $config_file=null) {
-	if (!$config_file)
-		$config_file = testdir() . '/zapstore-redis.json';
-	if (file_exists($config_file)) {
-		$args = json_decode(
-			file_get_contents($config_file), true);
-		if ($engine)
-			return $args[$engine];
-		return $args;
-	}
-	# connection parameter stub
-	$params = [
-		'redishost' => 'localhost',
-		'redisport' => 6379,
-		'redispassword' => 'xoxo',
-		'redisdatabase' => 10,
-	];
-	foreach ($params as $key => $val) {
-		$ukey = strtoupper($key);
-		$var = getenv($ukey);
-		if ($var)
-			$params[$key] = $var;
-	}
-	extract($params);
-
-	$args = [
-		'redis' => $params,
-		'predis' => $params,
-	];
-	$args['redis']['redistype'] = 'redis';
-	$args['predis']['redistype'] = 'predis';
-
-	file_put_contents($config_file,
-		json_encode($args, JSON_PRETTY_PRINT));
-	if ($engine)
-		return $args[$engine];
-	return $args;
 }

@@ -4,7 +4,6 @@
 require_once __DIR__ . '/Common.php';
 
 
-use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\MySQL;
 use BFITech\ZapStore\PgSQL;
@@ -14,124 +13,120 @@ use BFITech\ZapStore\SQLError;
 
 
 /**
- * Database-specific test.
+ * Backend-specific test.
  *
- * All tests are written in single class, but only one can be
- * activated at a time by setting static::$engine to the
- * driver of choice. Change static::$engine in database-
- * specific packages, otherwise tests for all drivers will be
- * run. Such change must also be reflected on composer 'require'
- * directive.
+ * This loops over all supported backends.
  */
-class SQLTest extends TestCase {
+class SQLTest extends Common {
 
-	public static $args = [];
-	public static $sql = [];
-	public static $config_file = null;
-	public static $logger = null;
-
-	public static $engine = null;
+	public static $types = ['mysql', 'pgsql', 'sqlite3'];
+	public static $conns = [];
 
 	private $time_stmt_test = null;
 
 	public static function setUpBeforeClass() {
-		self::$config_file = testdir() .
-			'/zapstore-sql.json';
-		self::$args = prepare_config_sql(
-			static::$engine, self::$config_file);
+		$cfile = self::tdir(__FILE__) . "/zapstore-sql.json";
+		$cnf = self::open_config(null, $cfile);
 
-		$logfile = testdir() . '/zapstore-sql.log';
+		$logfile = self::tdir(__FILE__) . "/zapstore-sql.log";
 		if (file_exists($logfile))
 			@unlink($logfile);
-		self::$logger = new Logger(Logger::DEBUG, $logfile);
+		$logger = new Logger(Logger::DEBUG, $logfile);
 
-		foreach (self::$args as $key => $val) {
+		foreach (self::$types as $type) {
 			try {
-				self::$sql[$key] = new SQL($val, self::$logger);
-			} catch(SQLError $e) {
+				$params = $cnf[$type];
+				$params['dbtype'] = $type;
+				self::$conns[$type] = new SQL($params, $logger);
+			} catch(SQLError $err) {
 				printf(
 					"ERROR: Cannot connect to '%s' test database.\n\n" .
 					"- Check extensions for interpreter: %s.\n" .
 					"- Fix test configuration '%s': %s\n" .
 					"- Inspect test log: %s.\n\n",
-					$key, PHP_BINARY, self::$config_file,
-					file_get_contents(self::$config_file), $logfile);
+					$type, PHP_BINARY, $cfile,
+					file_get_contents($cfile), $logfile);
 				exit(1);
 			}
 		}
 	}
 
 	public static function tearDownAfterClass() {
-		foreach (self::$sql as $sql) {
+		foreach (self::$conns as $sql) {
 			try {
 				$sql->query_raw("DROP TABLE test");
 				$sql->query_raw("DROP TABLE try0");
 				$sql->query_raw("DROP TABLE try1");
 				$sql->query_raw("DROP TABLE try2");
-			} catch(SQLError $e) {
+			} catch(SQLError $err) {
 			}
 		}
 	}
 
-	private function dbs($fn) {
-		foreach (self::$args as $dbtype => $_) {
-			$fn(self::$sql[$dbtype], $dbtype);
+	private function loop($fn) {
+		foreach (self::$types as $type) {
+			$conn = self::$conns[$type];
+			$fn($conn, $type);
+			self::eq()($conn->get_connection_params()['dbtype'], $type);
 		}
 	}
 
 	public function test_raw() {
-		$this->dbs(function($sql, $dbtype){
+		$this->loop(function($sql, $type){
+			extract($this->vars());
 
-			$this->assertEquals($sql->stmt_fragment('unknown'), null);
+			# uknown fragment gives null
+			$eq($sql->stmt_fragment('unknown'), null);
 
+			### generate datetime query
 			$expire_stmt = $sql->stmt_fragment(
 				'datetime', ['delta' => '3600']);
 			$expire_datetime = $sql->query(
 				sprintf("SELECT (%s) AS time", $expire_stmt)
 			)['time'];
-
+			# verify resulted datetime with DateTime class
 			$dtobj = DateTime::createFromFormat(DateTime::ATOM,
 				str_replace(' ', 'T', $expire_datetime) . 'Z');
-			$this->assertNotEquals($dtobj, false);
+			$ne($dtobj, false);
 
 			# this assumes each database server is correctly
 			# timed and there's no perceivable latency between
-			# it and current interpreter node
+			# it and current PHP interpreter node
 			$sec_between_db = 2;
 			if ($this->time_stmt_test != null) {
 				$this->assertLessThan(
 					$sec_between_db,
-					$this->time_stmt_test->diff($dtobj)->s);
+					$this->time_stmt_test->diff($dtobj)->s
+				);
 			}
 			$this->time_stmt_test = $dtobj;
 
+			### mysql doesn't have function as default value
 			if ($dbtype == 'mysql')
 				$expire_stmt = 'CURRENT_TIMESTAMP';
 
-			$sql->query_raw(sprintf(
-				"CREATE TABLE test (" .
-					" id %s, " .
-					" name VARCHAR(64), " .
-					" value INTEGER, " .
-					" time TIMESTAMP NOT NULL DEFAULT %s " .
-				") %s",
+			# use fragment to create table, should invoke no error
+			$sql->query_raw(sprintf("
+				CREATE TABLE test (
+					id %s,
+					name VARCHAR(64),
+					value INTEGER,
+					time TIMESTAMP NOT NULL DEFAULT %s 
+				) %s",
 				$sql->stmt_fragment('index'),
 				$expire_stmt,
 				$sql->stmt_fragment('engine')
 			));
 
-			$this->assertEquals(
-				$sql->get_connection_params(),
-				self::$args[$dbtype]);
-
-			$dbtype_test = substr($dbtype, 0, 5);
+			# check connection string wellformedness
+			$type_test = substr($type, 0, 5);
 			$cstr = $sql->get_connection_string();
-			$this->assertEquals(strpos($cstr, $dbtype_test), 0);
+			$eq(strpos($cstr, $type_test), 0);
 		});
 	}
 
 	public function test_datetime_fragment() {
-		$this->dbs(function($sql){
+		$this->loop(function($sql){
 			$unix_ts = [];
 			foreach ([
 				'past' => -3600,
@@ -145,7 +140,7 @@ class SQLTest extends TestCase {
 				)['time'];
 				$dtobj = DateTime::createFromFormat(DateTime::ATOM,
 					str_replace(' ', 'T', $datetime) . 'Z');
-				$this->assertNotEquals($dtobj, false);
+				$this->ne()($dtobj, false);
 				$unix_ts[$tense] = $dtobj->getTimestamp();
 			}
 			# allow 2-second delay
@@ -160,26 +155,26 @@ class SQLTest extends TestCase {
 	 * @depends test_raw
 	 */
 	public function test_insert() {
-		$this->dbs(function($sql, $dbtype){
+		$this->loop(function($sql, $type){
+			$eq = $this->eq();
+
 			try {
 				$sql->insert('wrong_table', ['a' => 'b']);
-			} catch (SQLError $e) {
+			} catch (SQLError $err) {
 				# wrong table
-				$this->assertEquals($e->code,
-					SQLError::EXECUTION_ERROR);
+				$eq($err->code, SQLError::EXECUTION_ERROR);
 			}
 			try {
 				$sql->insert('test', ['a' => 'b']);
-			} catch(SQLError $e) {
+			} catch(SQLError $err) {
 				# wrong column
-				$this->assertEquals($e->code,
-					SQLError::EXECUTION_ERROR);
+				$eq($err->code, SQLError::EXECUTION_ERROR);
 			}
 			$id = $sql->insert('test', [
 				'name' => 'apple',
 				'value' => 2,
 			], 'id');
-			$this->assertEquals($id, 1);
+			$eq($id, 1);
 
 			foreach ([
 				['banana', 0],
@@ -190,24 +185,25 @@ class SQLTest extends TestCase {
 					'name' => $dat[0],
 					'value' => $dat[1],
 				], 'id');
-				$this->assertEquals($nid, ++$id);
+				$eq($nid, ++$id);
 			}
 
-			if ($dbtype == 'pgsql') {
+			if ($type == 'pgsql') {
+
 				# postgres with one RETURNING key
 				$val = $sql->insert('test', [
 					'name' => 'eggplant',
 					'value' => 8,
 				], 'value');
-				$this->assertEquals($val, 8);
+				$eq($val, 8);
 				$sql->delete('test', ['name' => 'eggplant']);
 
-				# postgres with all RETURNING key
+				# postgres with all RETURNING keys
 				$val = $sql->insert('test', [
 					'name' => 'eggplant',
 					'value' => 8,
 				]);
-				$this->assertEquals($val['value'], 8);
+				$eq($val['value'], 8);
 				$sql->delete('test', ['name' => 'eggplant']);
 
 				# postgres with wrong RETURNING key
@@ -216,13 +212,12 @@ class SQLTest extends TestCase {
 						'name' => 'eggplant',
 						'value' => 8,
 					], 'address');
-				} catch(SQLError $e) {
-					$this->assertEquals(
-						$e->code, SQLError::EXECUTION_ERROR);
+				} catch(SQLError $err) {
+					$eq($err->code, SQLError::EXECUTION_ERROR);
 				}
 			}
 
-			if ($dbtype == 'sqlite3') {
+			if ($type == 'sqlite3') {
 				# no type safety for sqlite3
 				$id = $sql->insert('test', [
 					'name' => 'eggplant',
@@ -237,11 +232,12 @@ class SQLTest extends TestCase {
 	 * @depends test_insert
 	 */
 	public function test_select() {
-		$this->dbs(function($sql){
+		$this->loop(function($sql){
+			extract(self::vars());
 
 			# table doesn't exist
-			$this->assertFalse($sql->table_exists('#wrong_table'));
-			$this->assertFalse($sql->table_exists('wrong_table'));
+			$fl($sql->table_exists('#wrong_table'));
+			$fl($sql->table_exists('wrong_table'));
 
 			try {
 				$result = $sql->query("
@@ -249,29 +245,27 @@ class SQLTest extends TestCase {
 					FROM test
 					WHERE name=? AND date=?
 				", ['avocado'], true);
-			} catch(SQLError $e) {
-				$this->assertEquals($e->code,
-					SQLError::EXECUTION_ERROR);
+			} catch(SQLError $err) {
+				$eq($err->code, SQLError::EXECUTION_ERROR);
 			}
 
 			# table does exist
-			$this->assertTrue($sql->table_exists('test'));
+			$tr($sql->table_exists('test'));
 
 			try {
 				# syntax error
-				$sql->query(
-					"SELECT * FRO test ORDER BY id LIMIT 3");
-			} catch(SQLError $e) {
-				$this->assertEquals($e->code,
-					SQLError::EXECUTION_ERROR);
+				$sql->query("SELECT * FRO test ORDER BY id LIMIT 3");
+			} catch(SQLError $err) {
+				$eq($err->code, SQLError::EXECUTION_ERROR);
 			}
 
 			# single result returns dict
 			$result = $sql->query(
 				"SELECT * FROM test ORDER BY id LIMIT 3");
-			$this->assertEquals($result['id'], 1);
+			$eq($result['id'], 1);
 
-			# check date column integrity
+			# check date column integrity; watch out the slosh before
+			# DateTime
 			$datetime = \DateTime::createFromFormat(\DateTime::ATOM,
 				str_replace(' ', 'T', $result['time']) . '+0000');
 			$this->assertNotEquals($datetime, false);
@@ -281,12 +275,11 @@ class SQLTest extends TestCase {
 				return $r['id'];
 			}, $sql->query(
 				"SELECT * FROM test ORDER BY id LIMIT 3", [], true));
-			$this->assertEquals($result, [1, 2, 3]);
+			$eq($result, [1, 2, 3]);
 
-			# check if database and interpreter time match to the
-			# hour
+			# check if database and interpreter time match to the hour
 			$tstamp = gmdate('Y-m-d H', $sql->time());
-			$this->assertEquals($tstamp, gmdate('Y-m-d H'));
+			$eq($tstamp, gmdate('Y-m-d H'));
 		});
 	}
 
@@ -294,18 +287,18 @@ class SQLTest extends TestCase {
 	 * @depends test_insert
 	 */
 	public function test_delete() {
-		$this->dbs(function($sql){
+		$this->loop(function($sql){
 			try {
 				$sql->delete("wrong_table", ['name' => 'banana']);
-			} catch(SQLError $e) {
-				$this->assertEquals($e->code,
-					SQLError::EXECUTION_ERROR);
+			} catch(SQLError $err) {
+				$this->eq()($err->code, SQLError::EXECUTION_ERROR);
 			}
 
 			$sql->delete('test', ['name' => 'banana']);
-			$count = $sql->query(
-				"SELECT count(id) AS cnt FROM test")['cnt'];
-			$this->assertEquals($count, 3);
+			$count = $sql->query("
+				SELECT count(id) AS cnt FROM test
+			")['cnt'];
+			$this->eq()($count, 3);
 		});
 	}
 
@@ -313,15 +306,15 @@ class SQLTest extends TestCase {
 	 * @depends test_insert
 	 */
 	public function test_update() {
-		$this->dbs(function($sql){
+		$this->loop(function($sql){
+			$eq = $this->eq();
 			try {
 				$sql->update("wrong_table",
 					['name' => 'avocado'],
 					['name' => 'apple']
 				);
-			} catch(SQLError $e) {
-				$this->assertEquals($e->code,
-					SQLError::EXECUTION_ERROR);
+			} catch(SQLError $err) {
+				$eq($err->code, SQLError::EXECUTION_ERROR);
 			}
 
 			$sql->update("test",
@@ -331,13 +324,13 @@ class SQLTest extends TestCase {
 			$id = $sql->query(
 				"SELECT id FROM test WHERE name=?",
 				['avocado'])['id'];
-			$this->assertEquals($id, 1);
+			$eq($id, 1);
 
 			$sql->update("test", ['name' => 'jackfruit']);
 			$cnt = $sql->query(
 				"SELECT count(id) AS cnt FROM test WHERE name=?",
 				['jackfruit'])['cnt'];
-			$this->assertEquals($cnt, 3);
+			$eq($cnt, 3);
 		});
 	}
 
@@ -345,17 +338,19 @@ class SQLTest extends TestCase {
 	 * @depends test_insert
 	 */
 	public function test_transaction() {
-		$this->dbs(function($sql){
+		$this->loop(function($sql){
+			$eq = $this->eq();
+
 			try {
 				$sql->query_raw("CREATE TABLE test (id INTEGER)");
-			} catch(SQLError $e) {
+			} catch(SQLError $err) {
 				# table exists
-				$this->assertEquals($e->code,
-					SQLError::EXECUTION_ERROR);
+				$eq($err->code, SQLError::EXECUTION_ERROR);
 			}
 
 			$conn = $sql->get_connection();
 
+			# successful transaction
 			$conn->beginTransaction();
 			$sql->query_raw("CREATE TABLE try0 (id INTEGER)");
 			$sql->query_raw("CREATE TABLE try1 (id INTEGER)");
@@ -364,27 +359,25 @@ class SQLTest extends TestCase {
 			foreach (['try0', 'try1'] as $table) {
 				$id = $sql->query(sprintf(
 					"SELECT id val FROM %s", $table));
-				$this->assertEquals(false, $id);
+				$eq(false, $id);
 			}
 
+			# failed transaction
 			$conn->beginTransaction();
 			try {
 				$sql->query_raw("CREATE TABLE try2 (id INTEGER)");
 				$sql->query_raw("CREATE TABLE try1 (id INTEGER)");
 				$conn->commit();
-			} catch(SQLError $e) {
-				$this->assertEquals($e->code,
-					SQLError::EXECUTION_ERROR);
+			} catch(SQLError $err) {
+				$eq($err->code, SQLError::EXECUTION_ERROR);
 				$conn->rollBack();
 			}
 			try {
 				# try2 should be rolled back
 				$sql->query("SELECT 1 val FROM try2");
-			} catch(SQLError $e) {
-				$this->assertEquals($e->code,
-					SQLError::EXECUTION_ERROR);
+			} catch(SQLError $err) {
+				$eq($err->code, SQLError::EXECUTION_ERROR);
 			}
 		});
 	}
-
 }

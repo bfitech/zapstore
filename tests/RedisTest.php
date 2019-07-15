@@ -4,22 +4,23 @@
 require_once __DIR__ . '/Common.php';
 
 
-use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\Redis;
 
 
-class RedisTest extends TestCase {
+/**
+ * ext-redis-specific.
+ */
+class RedisTest extends Common {
 
 	public function test_redis() {
-		$testdir = testdir();
+		$testdir = self::tdir(__FILE__);
 		$logfile = $testdir . '/zapstore-redis.log';
-		$cnffile = $testdir . '/zapstore-redis.json';
 		$logger = new Logger(Logger::ERROR, $logfile);
-		$args = prepare_config_redis('redis', $cnffile);
-		$sql = new Redis($args, $logger);
-		$this->assertEquals(
-			$sql->get_connection_params()['redistype'], 'redis');
+		$args = self::open_config('redis');
+		$red = new Redis($args, $logger);
+		$this->eq()(
+			$red->get_connection_params()['redistype'], 'redis');
 	}
 
 }

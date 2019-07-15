@@ -11,7 +11,7 @@
   ],
   "require": {
     "php": ">=7.0 <7.4",
-    "bfitech/zapcore": "2.0.*"
+    "bfitech/zapcore": "2.1.*"
   },
   "require-dev": {
     "ext-sqlite3": "*",
@@ -38,11 +38,12 @@
   },
   "autoload-dev": {
     "psr-4": {
+      "BFITech\\ZapCoreDev\\": "vendor/bfitech/zapcore"
     }
   },
   "extra": {
     "branch-alias": {
-      "dev-master": "2.0.x-dev"
+      "dev-master": "2.1.x-dev"
     }
   }
 }

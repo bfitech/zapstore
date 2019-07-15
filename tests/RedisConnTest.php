@@ -4,172 +4,158 @@
 require_once __DIR__ . '/Common.php';
 
 
-use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger;
-use BFITech\ZapStore\RedisConn as ZapRedis;
-use BFITech\ZapStore\RedisError as ZapRedisErr;
+use BFITech\ZapStore\RedisConn;
+use BFITech\ZapStore\RedisError;
 use BFITech\ZapStore\Predis;
 use BFITech\ZapStore\Redis;
 use Predis\Response\Status as ResponseStatus;
 
-/**
- * Database-specific test.
- *
- * All tests are written in single class, but only one can be
- * activated at a time by setting static::$engine to the
- * driver of choice. Change static::$engine in redis-
- * specific packages, otherwise tests for all drivers will be
- * run. Such change must also be reflected on composer 'require'
- * directive.
- */
-class RedisConnTest extends TestCase {
-	public static $args = [];
-	public static $redis = [];
-	public static $config_file = null;
-	public static $logger = null;
 
-	public static $engine = null;
+/**
+ * Driver-specific test.
+ *
+ * This loops over all supported drivers.
+ */
+class RedisConnTest extends Common {
+	public static $types = ['redis', 'predis'];
+	public static $conns = [];
 
 	public static function setUpBeforeClass() {
-		$testdir = testdir();
-		self::$config_file = $testdir . '/zapstore-redis.json';
-		self::$args = prepare_config_redis(
-			static::$engine, self::$config_file);
+		$cfile =  self::tdir(__FILE__) . "/zapstore-redis.json";
+		$cnf = self::open_config(null, $cfile);
 
-		$logfile = $testdir . '/zapstore-redis.log';
+		$logfile = self::tdir(__FILE__) . '/zapstore-redis.log';
 		if (file_exists($logfile))
 			@unlink($logfile);
-		self::$logger = new Logger(Logger::DEBUG, $logfile);
+		$logger = new Logger(Logger::DEBUG, $logfile);
 
-		foreach (self::$args as $key => $val) {
+		foreach (self::$types as $type) {
 			try {
-				self::$redis[$key] = new ZapRedis($val, self::$logger);
-			} catch(ZapRedisErr $e) {
+				$params = $cnf[$type];
+				$params['redistype'] = $type;
+				self::$conns[$type] = new RedisConn($params, $logger);
+			} catch(RedisError $e) {
 				printf(
 					"ERROR: Cannot connect to '%s' test database.\n\n" .
 					"- Check extensions for interpreter: %s.\n" .
 					"- Fix test configuration '%s': %s\n" .
 					"- Inspect test log: %s.\n\n",
-					$key, PHP_BINARY, self::$config_file,
-					file_get_contents(self::$config_file), $logfile);
+					$type, PHP_BINARY, $cfile,
+					file_get_contents($cfile), $logfile);
 				exit(1);
 			}
 		}
 	}
 
-	public static function tearDownAfterClass() {
-	}
-
 	public function tearDown() {
-		$this->loopredis(function($redis, $redistype){
-			$redis->get_connection()->flushDb();
+		$this->loop(function($conn, $redistype){
+			$conn->get_connection()->flushdb();
 		});
 	}
 
-	private function loopredis($fn) {
-		foreach (array_keys(self::$args) as $redistype) {
-			$fn(self::$redis[$redistype], $redistype);
-			$this->assertEquals(
-				self::$redis[$redistype]->get_connection_params(),
-				self::$args[$redistype]);
-
-			$args = self::$redis[$redistype]
-				->get_connection_params();
-			$this->assertEquals($args['redistype'], $redistype);
+	private function loop($fn) {
+		foreach (self::$types as $type) {
+			$conn = self::$conns[$type];
+			$fn($conn, $type);
+			self::eq()(
+				$conn->get_connection_params()['redistype'], $type);
 		}
 	}
 
 	public function test_connection() {
-		$this->loopredis(function($redis, $redistype){
-			$conn = $redis->get_connection();
-			if ($redistype == 'redis')
-				$this->assertTrue($conn instanceof \Redis);
-			if ($redistype == 'predis')
-				$this->assertTrue($conn instanceof \Predis\Client);
+		$this->loop(function($conn, $type){
+			$tr = self::tr();
+			$rconn = $conn->get_connection();
+			if ($type == 'redis')
+				$tr($rconn instanceof \Redis);
+			if ($type == 'predis')
+				$tr($rconn instanceof \Predis\Client);
 		});
 	}
 
 	public function test_set() {
-		$this->loopredis(function($redis, $redistype){
-			if ($redistype == 'redis')
-				$this->assertEquals(
-					$redis->set('myvalue', 'hello'), true);
-			if ($redistype == 'predis') {
-				$response = $redis->set('myvalue', 'hello');
-				$this->assertEquals($response::get('OK'),
-					ResponseStatus::get('OK'));
+		$this->loop(function($conn, $type){
+			$eq = self::eq();
+			if ($type == 'redis')
+				$eq($conn->set('myvalue', 'hello'), true);
+			if ($type == 'predis') {
+				$response = $conn->set('myvalue', 'hello');
+				$eq($response::get('OK'), ResponseStatus::get('OK'));
 			}
 		});
 	}
 
 	public function test_hset() {
-		$this->loopredis(function($redis, $redistype){
-			$ret = $redis->hset('h', 'mykey', 'hello');
+		$this->loop(function($conn, $_){
+			$ret = $conn->hset('h', 'mykey', 'hello');
 			if($ret === false)
 				$ret = 2;
-			$this->assertEquals(in_array($ret, [0,1]), true);
+			$this->eq()(in_array($ret, [0,1]), true);
 		});
 	}
 
 	public function test_del() {
-		$this->loopredis(function($redis, $redistype){
-			$redis->set('key1', 'val1');
-			$redis->set('key2', 'val2');
-			$redis->set('key3', 'val3');
-			$redis->set('key4', 'val4');
-			$ret = $redis->del(['key1', 'key2']);
+		$this->loop(function($conn, $_){
+			$conn->set('key1', 'val1');
+			$conn->set('key2', 'val2');
+			$conn->set('key3', 'val3');
+			$conn->set('key4', 'val4');
+			$ret = $conn->del(['key1', 'key2']);
 			# returns number of deleted keys
-			$this->assertEquals($ret, 2);
+			$this->eq()($ret, 2);
 		});
 	}
 
 	public function test_expire() {
-		$this->loopredis(function($redis, $redistype){
-			$redis->set('key1', 'val1');
-			# set expire in the past
-			$redis->expire('key1', 1);
-			sleep(2);
-			$ret = $redis->get('key1');
-			$this->assertEquals($ret, false);
+		$this->loop(function($conn, $_){
+			$eq = self::eq();
 
-			$redis->set('key2', 'val2');
+			$conn->set('key1', 'val1');
+			# set expire in the past
+			$conn->expire('key1', 1);
+			sleep(2);
+			$ret = $conn->get('key1');
+			$eq($ret, false);
+
+			$conn->set('key2', 'val2');
 			# set expireat in the past
-			$time = $redis->time() - 3;
-			$redis->expireat('key2', $time);
-			$ret = $redis->get('key2');
-			$this->assertEquals($ret, false);
+			$time = $conn->time() - 3;
+			$conn->expireat('key2', $time);
+			$ret = $conn->get('key2');
+			$eq($ret, false);
 		});
 	}
 
 	public function test_get() {
-		$this->loopredis(function($redis, $redistype){
-			$redis->set('key1', 'val1');
-			$ret = $redis->get('key1');
-			$this->assertEquals($ret, 'val1');
-			$redis->del('key1');
+		$this->loop(function($conn, $_){
+			$conn->set('key1', 'val1');
+			$ret = $conn->get('key1');
+			$this->eq()($ret, 'val1');
+			$conn->del('key1');
 		});
 	}
 
 	public function test_hget() {
-		$this->loopredis(function($redis, $redistype){
-			$redis->del('h');
-			$redis->hset('h', 'key1', 'val1');
-			$redis->hset('h', 'key2', 'val2');
-			$ret = $redis->hget('h', 'key1');
-			$this->assertEquals($ret, 'val1');
-			$redis->del('h');
+		$this->loop(function($conn, $_){
+			$conn->del('h');
+			$conn->hset('h', 'key1', 'val1');
+			$conn->hset('h', 'key2', 'val2');
+			$ret = $conn->hget('h', 'key1');
+			$this->eq()($ret, 'val1');
+			$conn->del('h');
 		});
 	}
 
 	public function test_ttl() {
-		$this->loopredis(function($redis, $redistype){
-			$redis->set('key1', 'val1');
-			$time = $redis->time(true);
+		$this->loop(function($conn, $_){
+			$conn->set('key1', 'val1');
+			$time = $conn->time(true);
 			$expire = intval($time) + 10;
-			$redis->expireat('key1', $expire);
-			$ttl = $redis->ttl('key1');
-			$this->assertEquals(in_array($ttl, [9, 10]), true);
-			$redis->del('key1');
+			$conn->expireat('key1', $expire);
+			$ttl = $conn->ttl('key1');
+			$this->eq()(in_array($ttl, [9, 10]), true);
+			$conn->del('key1');
 		});
 	}
 

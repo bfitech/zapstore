@@ -4,7 +4,6 @@
 require_once __DIR__ . '/Common.php';
 
 
-use PHPUnit\Framework\TestCase;
 use BFITech\ZapCore\Logger;
 use BFITech\ZapStore\SQL;
 use BFITech\ZapStore\SQLError;
@@ -13,19 +12,20 @@ use BFITech\ZapStore\SQLError;
 /**
  * Generic tests.
  *
- * This assumes all supported database drivers are installed.
- * Do not subclass this in database-specific packages.
+ * This doesn't loop over all supported backends.
  */
-class SQLGenericTest extends TestCase {
+class SQLGenericTest extends Common {
 
 	public static $logger;
 
 	public static function setUpBeforeClass() {
-		$logfile = testdir() . '/zapstore-sql.log';
+		$logfile = self::tdir(__FILE__) . '/zapstore-sql.log';
 		self::$logger = new Logger(Logger::DEBUG, $logfile);
 	}
 
 	public function test_exception() {
+		$eq = $this->eq();
+
 		$args = ['dbname' => ':memory:', 'dbtype' => 'sqlite3'];
 		$sql = new SQL($args, self::$logger);
 
@@ -33,36 +33,34 @@ class SQLGenericTest extends TestCase {
 		try {
 			$sql->query($invalid_stmt, [2]);
 		} catch(SQLError $e) {
-			$this->assertEquals($e->getStmt(), $invalid_stmt);
-			$this->assertEquals($e->getArgs(), [2]);
-			$this->assertEquals($e->code,
-				SQLError::EXECUTION_ERROR);
+			$eq($e->getStmt(), $invalid_stmt);
+			$eq($e->getArgs(), [2]);
+			$eq($e->code, SQLError::EXECUTION_ERROR);
 		}
 
 		$sql->close();
 		try {
 			$sql->query("SELECT datetime() AS now");
 		} catch(SQLError $e) {
-			$this->assertEquals($e->code,
-				SQLError::CONNECTION_ERROR);
+			$eq($e->code, SQLError::CONNECTION_ERROR);
 		}
 	}
 
 	public function test_connection_parameters() {
+		$eq = $this->eq();
+
 		$args = ['dbname' => ':memory:'];
 		try {
 			$sql = new SQL($args, self::$logger);
 		} catch(SQLError $e) {
-			$this->assertEquals($e->code,
-				SQLError::CONNECTION_ARGS_ERROR);
+			$eq($e->code, SQLError::CONNECTION_ARGS_ERROR);
 		}
 
 		$args['dbtype'] = 'sqlite';
 		try {
 			$sql = new SQL($args, self::$logger);
 		} catch(SQLError $e) {
-			$this->assertEquals($e->code,
-				SQLError::DBTYPE_ERROR);
+			$eq($e->code, SQLError::DBTYPE_ERROR);
 		}
 
 		$args = [
@@ -72,8 +70,7 @@ class SQLGenericTest extends TestCase {
 		try {
 			$sql = new SQL($args, self::$logger);
 		} catch(SQLError $e) {
-			$this->assertEquals($e->code,
-				SQLError::CONNECTION_ARGS_ERROR);
+			$eq($e->code, SQLError::CONNECTION_ARGS_ERROR);
 		}
 		$args['dbuser'] = 'root';
 		$args['dbhost'] = '127.0.0.1';
@@ -81,8 +78,7 @@ class SQLGenericTest extends TestCase {
 		try {
 			$sql = new SQL($args, self::$logger);
 		} catch(SQLError $e) {
-			$this->assertEquals($e->code,
-				SQLError::CONNECTION_ERROR);
+			$eq($e->code, SQLError::CONNECTION_ERROR);
 		}
 
 		$args = [
@@ -95,24 +91,21 @@ class SQLGenericTest extends TestCase {
 		try {
 			$sql = new SQL($args, self::$logger);
 		} catch(SQLError $e) {
-			$this->assertEquals($e->code,
-				SQLError::CONNECTION_ARGS_ERROR);
+			$eq($e->code, SQLError::CONNECTION_ARGS_ERROR);
 		}
 		$args['dbuser'] = 'root';
-		$args['dbhost'] = '127.0.0.1';
+		$args['dbhost'] = '0.0.0.1';
 		try {
 			$sql = new SQL($args, self::$logger);
 		} catch(SQLError $e) {
-			$this->assertEquals($e->code,
-				SQLError::CONNECTION_ERROR);
+			$eq($e->code, SQLError::CONNECTION_ERROR);
 		}
 
 		$args['dbtype'] = 'mssql';
 		try {
 			$sql = new SQL($args, self::$logger);
 		} catch(SQLError $e) {
-			$this->assertEquals($e->code,
-				SQLError::DBTYPE_ERROR);
+			$eq($e->code, SQLError::DBTYPE_ERROR);
 		}
 	}
 
