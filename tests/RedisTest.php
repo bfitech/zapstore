@@ -14,11 +14,10 @@ use BFITech\ZapStore\Redis;
 class RedisTest extends Common {
 
 	public function test_redis() {
-		$testdir = self::tdir(__FILE__);
-		$logfile = $testdir . '/zapstore-redis.log';
+		$logfile = self::tdir(__FILE__) . '/zapstore-redis.log';
 		$logger = new Logger(Logger::ERROR, $logfile);
-		$args = self::open_config('redis');
-		$red = new Redis($args, $logger);
+		$params = self::open_config('redis');
+		$red = new Redis($params, $logger);
 		$this->eq()(
 			$red->get_connection_params()['redistype'], 'redis');
 	}

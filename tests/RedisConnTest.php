@@ -22,10 +22,9 @@ class RedisConnTest extends Common {
 	public static $conns = [];
 
 	public static function setUpBeforeClass() {
-		$cfile =  self::tdir(__FILE__) . "/zapstore-redis.json";
-		$cnf = self::open_config(null, $cfile);
+		$cnf = self::open_config(null);
 
-		$logfile = self::tdir(__FILE__) . '/zapstore-redis.log';
+		$logfile = self::tdir(__FILE__) . '/zapstore-redisconn.log';
 		if (file_exists($logfile))
 			@unlink($logfile);
 		$logger = new Logger(Logger::DEBUG, $logfile);
@@ -36,14 +35,7 @@ class RedisConnTest extends Common {
 				$params['redistype'] = $type;
 				self::$conns[$type] = new RedisConn($params, $logger);
 			} catch(RedisError $e) {
-				printf(
-					"ERROR: Cannot connect to '%s' test database.\n\n" .
-					"- Check extensions for interpreter: %s.\n" .
-					"- Fix test configuration '%s': %s\n" .
-					"- Inspect test log: %s.\n\n",
-					$type, PHP_BINARY, $cfile,
-					file_get_contents($cfile), $logfile);
-				exit(1);
+				self::conn_bail($type, $logfile);
 			}
 		}
 	}

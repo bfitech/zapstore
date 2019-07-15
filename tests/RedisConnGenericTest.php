@@ -46,8 +46,8 @@ class RedisConnGenericTest extends Common {
 		$args['redisdatabase'] = -1000;
 		try {
 			new RedisConn($args, self::$logger);
-		} catch(RedisError $e) {
-			$this->eq()($e->code, RedisError::CONNECTION_ERROR);
+		} catch(RedisError $err) {
+			$this->eq()($err->code, RedisError::CONNECTION_ERROR);
 		}
 
 		# invalid password
@@ -55,8 +55,8 @@ class RedisConnGenericTest extends Common {
 		$args['redispassword'] = 'xoxox';
 		try {
 			new RedisConn($args, self::$logger);
-		} catch(RedisError $e) {
-			$this->eq()($e->code, RedisError::CONNECTION_ERROR);
+		} catch(RedisError $err) {
+			$this->eq()($err->code, RedisError::CONNECTION_ERROR);
 		}
 
 		# valid
@@ -76,16 +76,16 @@ class RedisConnGenericTest extends Common {
 		$args = ['redishost' => 'localhost'];
 		try {
 			$sql = new RedisConn($args, self::$logger);
-		} catch(RedisError $e) {
-			$this->eq()($e->code, RedisError::CONNECTION_ARGS_ERROR);
+		} catch(RedisError $err) {
+			$this->eq()($err->code, RedisError::CONNECTION_ARGS_ERROR);
 		}
 
 		$args['redishost'] = '127.0.0.1';
 		$args['redistype'] = 'sqlite';
 		try {
 			$sql = new RedisConn($args, self::$logger);
-		} catch(RedisError $e) {
-			$this->eq()($e->code, RedisError::REDISTYPE_ERROR);
+		} catch(RedisError $err) {
+			$this->eq()($err->code, RedisError::REDISTYPE_ERROR);
 		}
 	}
 

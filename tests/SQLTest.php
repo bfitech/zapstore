@@ -25,8 +25,7 @@ class SQLTest extends Common {
 	private $time_stmt_test = null;
 
 	public static function setUpBeforeClass() {
-		$cfile = self::tdir(__FILE__) . "/zapstore-sql.json";
-		$cnf = self::open_config(null, $cfile);
+		$cnf = self::open_config(null);
 
 		$logfile = self::tdir(__FILE__) . "/zapstore-sql.log";
 		if (file_exists($logfile))
@@ -37,16 +36,11 @@ class SQLTest extends Common {
 			try {
 				$params = $cnf[$type];
 				$params['dbtype'] = $type;
+				if ($type == 'sqlite3')
+					$params['dbname'] = realpath($params['dbname']);
 				self::$conns[$type] = new SQL($params, $logger);
 			} catch(SQLError $err) {
-				printf(
-					"ERROR: Cannot connect to '%s' test database.\n\n" .
-					"- Check extensions for interpreter: %s.\n" .
-					"- Fix test configuration '%s': %s\n" .
-					"- Inspect test log: %s.\n\n",
-					$type, PHP_BINARY, $cfile,
-					file_get_contents($cfile), $logfile);
-				exit(1);
+				self::conn_bail($type, $logfile);
 			}
 		}
 	}

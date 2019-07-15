@@ -14,11 +14,10 @@ use BFITech\ZapStore\Predis;
 class PredisTest extends Common {
 
 	public function test_predis() {
-		$testdir = self::tdir(__FILE__);
-		$logfile = $testdir . '/zapstore-redis.log';
+		$logfile = self::tdir(__FILE__) . '/zapstore-predis.log';
 		$logger = new Logger(Logger::ERROR, $logfile);
-		$args = self::open_config('predis');
-		$sql = new Predis($args, $logger);
+		$params = self::open_config('predis');
+		$sql = new Predis($params, $logger);
 		$this->eq()(
 			$sql->get_connection_params()['redistype'], 'predis');
 	}

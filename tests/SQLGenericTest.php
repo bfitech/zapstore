@@ -32,17 +32,17 @@ class SQLGenericTest extends Common {
 		$invalid_stmt = "SELECT datetim() AS now, 1+? AS num";
 		try {
 			$sql->query($invalid_stmt, [2]);
-		} catch(SQLError $e) {
-			$eq($e->getStmt(), $invalid_stmt);
-			$eq($e->getArgs(), [2]);
-			$eq($e->code, SQLError::EXECUTION_ERROR);
+		} catch(SQLError $err) {
+			$eq($err->getStmt(), $invalid_stmt);
+			$eq($err->getArgs(), [2]);
+			$eq($err->code, SQLError::EXECUTION_ERROR);
 		}
 
 		$sql->close();
 		try {
 			$sql->query("SELECT datetime() AS now");
-		} catch(SQLError $e) {
-			$eq($e->code, SQLError::CONNECTION_ERROR);
+		} catch(SQLError $err) {
+			$eq($err->code, SQLError::CONNECTION_ERROR);
 		}
 	}
 
@@ -52,15 +52,15 @@ class SQLGenericTest extends Common {
 		$args = ['dbname' => ':memory:'];
 		try {
 			$sql = new SQL($args, self::$logger);
-		} catch(SQLError $e) {
-			$eq($e->code, SQLError::CONNECTION_ARGS_ERROR);
+		} catch(SQLError $err) {
+			$eq($err->code, SQLError::CONNECTION_ARGS_ERROR);
 		}
 
 		$args['dbtype'] = 'sqlite';
 		try {
 			$sql = new SQL($args, self::$logger);
-		} catch(SQLError $e) {
-			$eq($e->code, SQLError::DBTYPE_ERROR);
+		} catch(SQLError $err) {
+			$eq($err->code, SQLError::DBTYPE_ERROR);
 		}
 
 		$args = [
@@ -69,16 +69,16 @@ class SQLGenericTest extends Common {
 		];
 		try {
 			$sql = new SQL($args, self::$logger);
-		} catch(SQLError $e) {
-			$eq($e->code, SQLError::CONNECTION_ARGS_ERROR);
+		} catch(SQLError $err) {
+			$eq($err->code, SQLError::CONNECTION_ARGS_ERROR);
 		}
 		$args['dbuser'] = 'root';
 		$args['dbhost'] = '127.0.0.1';
 		$args['dbport'] = 5698;
 		try {
 			$sql = new SQL($args, self::$logger);
-		} catch(SQLError $e) {
-			$eq($e->code, SQLError::CONNECTION_ERROR);
+		} catch(SQLError $err) {
+			$eq($err->code, SQLError::CONNECTION_ERROR);
 		}
 
 		$args = [
@@ -90,22 +90,22 @@ class SQLGenericTest extends Common {
 		];
 		try {
 			$sql = new SQL($args, self::$logger);
-		} catch(SQLError $e) {
-			$eq($e->code, SQLError::CONNECTION_ARGS_ERROR);
+		} catch(SQLError $err) {
+			$eq($err->code, SQLError::CONNECTION_ARGS_ERROR);
 		}
 		$args['dbuser'] = 'root';
 		$args['dbhost'] = '0.0.0.1';
 		try {
 			$sql = new SQL($args, self::$logger);
-		} catch(SQLError $e) {
-			$eq($e->code, SQLError::CONNECTION_ERROR);
+		} catch(SQLError $err) {
+			$eq($err->code, SQLError::CONNECTION_ERROR);
 		}
 
 		$args['dbtype'] = 'mssql';
 		try {
 			$sql = new SQL($args, self::$logger);
-		} catch(SQLError $e) {
-			$eq($e->code, SQLError::DBTYPE_ERROR);
+		} catch(SQLError $err) {
+			$eq($err->code, SQLError::DBTYPE_ERROR);
 		}
 	}
 
