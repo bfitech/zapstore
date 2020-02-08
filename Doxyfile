@@ -5,7 +5,7 @@
 #---------------------------------------------------------------------------
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = "ZapStore"
-PROJECT_NUMBER         = "2.1"
+PROJECT_NUMBER         = "2.2"
 PROJECT_BRIEF          = "A simple database connection wrapper."
 PROJECT_LOGO           =
 OUTPUT_DIRECTORY       = ./docs
@@ -201,7 +201,6 @@ EXTRA_SEARCH_MAPPINGS  =
 # Configuration options related to the dot tool
 #---------------------------------------------------------------------------
 CLASS_DIAGRAMS         = YES
-MSCGEN_PATH            =
 DIA_PATH               =
 HIDE_UNDOC_RELATIONS   = YES
 HAVE_DOT               = YES
