@@ -8,7 +8,12 @@ use BFITech\ZapCore\Logger;
 
 
 /**
- * PHPRedis wrapper class.
+ * phpredis a.k.a ext-redis wrapper class.
+ *
+ * Do not use on production. Use metapackage `bfitech/zapstore-redis`
+ * instead for easier dependency management.
+ *
+ * @see https://packagist.org/packages/bfitech/zapstore-redis
  */
 class Redis extends RedisConn {
 

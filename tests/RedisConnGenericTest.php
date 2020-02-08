@@ -60,12 +60,21 @@ class RedisConnGenericTest extends Common {
 			$eq($err->code, RedisError::CONNECTION_ERROR);
 		}
 
-		# valid
+		# valid, with timeout
 		$args['redispassword'] = 'xoxo';
-		$args['redistimeout'] = 0.5;
+		$args['redistimeout'] = 0.1;
 		$redis = new RedisConn($args, self::$logger);
 		$redis->close();
 		$eq($redis->get_connection(), null);
+
+		# unreachable host, default port
+		$args['redishost'] = '0.0.0.0';
+		unset($args['redisport']);
+		try {
+			new RedisConn($args, self::$logger);
+		} catch(RedisError $err) {
+			$eq($err->code, RedisError::CONNECTION_ERROR);
+		}
 	}
 
 	public function test_exception() {

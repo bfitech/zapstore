@@ -9,6 +9,11 @@ use BFITech\ZapCore\Logger;
 
 /**
  * Predis wrapper class.
+ *
+ * Do not use on production. Use metapackage `bfitech/zapstore-predis`
+ * instead for easier dependency management.
+ *
+ * @see https://packagist.org/packages/bfitech/zapstore-predis
  */
 class Predis extends RedisConn {
 
