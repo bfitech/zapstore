@@ -122,6 +122,10 @@ class RedisConn extends RedisCall {
 
 	/**
 	 * Open connection with ext-redis.
+	 *
+	 * This overrides timeout to 0.2 second from 0 to avoid hanging
+	 * conection due to non-reachable server. Timeout becomes quiet
+	 * short but that is the point of using Redis anyway.
 	 */
 	private function connection__redis() {
 		$conn =& $this->connection;
@@ -134,12 +138,18 @@ class RedisConn extends RedisCall {
 
 		# connect
 		$conn = new \Redis();
+		// @codeCoverageIgnoreStart
 		try {
-			if (!$conn->connect($redishost, $redisport, $redistimeout))
+			# @note: On older versions of phpredis, invalid host causes
+			# false return while on at least 5.0, it raises exception.
+			# phpredis as old as 2.2.8 under PHP 7.0 still works with
+			# this package so let's just ignore the coverage.
+			if (!@$conn->connect($redishost, $redisport, $redistimeout))
 				return $this->connection_open_fail();
 		} catch(\RedisException $e) {
 			return $this->connection_open_fail($e->getMessage());
 		}
+		// @codeCoverageIgnoreEnd
 
 		# try auth and select
 		if ($redispassword || $redisdatabase) {

@@ -41,7 +41,7 @@ class RedisConnGenericTest extends Common {
 	private function invoke_exception($type) {
 		$args = self::open_config($type);
 		$args['redistype'] = $type;
-		$eq = self::eq();
+		extract(self::vars());
 
 		# fail by invalid database
 		$args['redisdatabase'] = -1000;
@@ -67,14 +67,17 @@ class RedisConnGenericTest extends Common {
 		$redis->close();
 		$eq($redis->get_connection(), null);
 
-		# unreachable host, default port
-		$args['redishost'] = '0.0.0.0';
+		# invalid host, default port
+		$args['redishost'] = '0.0.0.1';
 		unset($args['redisport']);
+		$fail = false;
 		try {
 			new RedisConn($args, self::$logger);
 		} catch(RedisError $err) {
+			$fail = true;
 			$eq($err->code, RedisError::CONNECTION_ERROR);
 		}
+		$tr($fail);
 	}
 
 	public function test_exception() {
