@@ -106,8 +106,7 @@ abstract class RedisCall {
 			$keys = func_get_args();
 		$res_keys = json_encode($keys);
 		self::$logger->info(sprintf(
-			"Redis: delete %s: '%s'.",
-			$res_log, $res_keys));
+			"Redis: delete %s: '%s'.", $res_log, $res_keys));
 		return $res;
 	}
 
@@ -121,9 +120,7 @@ abstract class RedisCall {
 	 * @return bool True on success, false otherwise.
 	 */
 	final public function expire(string $key, int $ttl) {
-		$method = $this->get_driver() == 'predis'
-			? 'expire' : 'setTimeout';
-		$res = $this->connection->$method($key, $ttl);
+		$res = $this->connection->expire($key, $ttl);
 		self::$logger->info(sprintf(
 			"Redis: expire %s: %s.", $key, $ttl));
 		return $res;
