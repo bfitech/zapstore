@@ -62,6 +62,7 @@ class RedisConnGenericTest extends Common {
 
 		# valid
 		$args['redispassword'] = 'xoxo';
+		$args['redistimeout'] = 0.5;
 		$redis = new RedisConn($args, self::$logger);
 		$redis->close();
 		$eq($redis->get_connection(), null);

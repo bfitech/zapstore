@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 
 namespace BFITech\ZapStore;
@@ -14,7 +14,7 @@ use BFITech\ZapCore\Logger;
  */
 class RedisConn {
 
-	private $verified_params = null;
+	private $verified_params = [];
 	private $connection = null;
 
 	/** Logging service. */
@@ -23,13 +23,13 @@ class RedisConn {
 	/**
 	 * Constructor.
 	 *
-	 * @param array $params Connection dict with keys:<br>
-	 *     - `redistype`, one of: `redis`, `predis`
-	 *     - `redishost`, TCP only
-	 *     - `redisport`, do not set to use default
-	 *     - `redispassword`, do not for passwordless server
-	 *     - `redisdatabase`, do not set to use default
-	 *     - `redistimeout`, do not set to use default
+	 * @param array $params Connection dict with key-value types:<br>
+	 *     - `string` **redistype**, one of: `redis`, `predis`
+	 *     - `string` **redishost**, TCP only
+	 *     - `int` **redisport**, do not set to use default
+	 *     - `string` **redispassword**, do not for passwordless server
+	 *     - `int` **redisdatabase**, do not set to use default
+	 *     - `float` **redistimeout**, do not set to use default
 	 * @param Logger $logger Logger instance.
 	 */
 	public function __construct(array $params, Logger $logger=null) {
@@ -37,6 +37,7 @@ class RedisConn {
 		self::$logger = $logger ?? new Logger();
 		self::$logger->debug("Redis: object instantiated.");
 
+		# initialize
 		$verified_params = [];
 		$propkeys = [
 			'redistype', 'redishost', 'redisport',
@@ -48,6 +49,7 @@ class RedisConn {
 			$verified_params[$key] = $params[$key];
 		}
 
+		# mandatory params
 		foreach (['redistype', 'redishost'] as $key) {
 			if (isset($verified_params[$key]))
 				continue;
@@ -106,9 +108,15 @@ class RedisConn {
 	 * Open connection with ext-redis.
 	 */
 	private function connection__redis() {
-		$redispassword = $redisdatabase  = null;
-		$redishost = $redisport = $redistimeout = null;
+		$redishost = $redispassword = '';
+		$redisport = $redistimeout = $redisdatabase = 0;
 		extract($this->verified_params);
+
+		# type cast here since often times we read config from JSON
+		# that's not properly type-aware.
+		$redisport = intval($redisport);
+		$redisdatabase = intval($redisdatabase);
+		$redistimeout = floatval($redistimeout);
 
 		$this->connection = new \Redis();
 		# @note: This emits warning on failure instead of throwing
