@@ -18,7 +18,7 @@ class MySQLTest extends Common {
 		$logger = new Logger(Logger::ERROR, $logfile);
 		$params = self::open_config('mysql');
 		$sql = new MySQL($params, $logger);
-		$this->eq()($sql->get_connection_params()['dbtype'], 'mysql');
+		self::eq()($sql->get_connection_params()['dbtype'], 'mysql');
 	}
 
 }

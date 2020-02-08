@@ -18,7 +18,7 @@ class PredisTest extends Common {
 		$logger = new Logger(Logger::ERROR, $logfile);
 		$params = self::open_config('predis');
 		$sql = new Predis($params, $logger);
-		$this->eq()(
+		self::eq()(
 			$sql->get_connection_params()['redistype'], 'predis');
 	}
 

@@ -31,7 +31,7 @@ class RedisConnGenericTest extends Common {
 
 		# success
 		$red = new RedisConn($args, self::$logger);
-		$this->eq()($red->get_driver(), 'redis');
+		self::eq()($red->get_driver(), 'redis');
 
 		# fail by wrong password
 		unset($args['redispassword']);
@@ -41,13 +41,14 @@ class RedisConnGenericTest extends Common {
 	private function invoke_exception($type) {
 		$args = self::open_config($type);
 		$args['redistype'] = $type;
+		$eq = self::eq();
 
 		# fail by invalid database
 		$args['redisdatabase'] = -1000;
 		try {
 			new RedisConn($args, self::$logger);
 		} catch(RedisError $err) {
-			$this->eq()($err->code, RedisError::CONNECTION_ERROR);
+			$eq($err->code, RedisError::CONNECTION_ERROR);
 		}
 
 		# invalid password
@@ -56,14 +57,14 @@ class RedisConnGenericTest extends Common {
 		try {
 			new RedisConn($args, self::$logger);
 		} catch(RedisError $err) {
-			$this->eq()($err->code, RedisError::CONNECTION_ERROR);
+			$eq($err->code, RedisError::CONNECTION_ERROR);
 		}
 
 		# valid
 		$args['redispassword'] = 'xoxo';
 		$redis = new RedisConn($args, self::$logger);
 		$redis->close();
-		$this->eq()($redis->get_connection(), null);
+		$eq($redis->get_connection(), null);
 	}
 
 	public function test_exception() {
@@ -85,7 +86,7 @@ class RedisConnGenericTest extends Common {
 		try {
 			$sql = new RedisConn($args, self::$logger);
 		} catch(RedisError $err) {
-			$this->eq()($err->code, RedisError::REDISTYPE_ERROR);
+			self::eq()($err->code, RedisError::REDISTYPE_ERROR);
 		}
 	}
 

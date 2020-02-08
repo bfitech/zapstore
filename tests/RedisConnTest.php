@@ -83,7 +83,7 @@ class RedisConnTest extends Common {
 			$ret = $conn->hset('h', 'mykey', 'hello');
 			if($ret === false)
 				$ret = 2;
-			$this->eq()(in_array($ret, [0,1]), true);
+			self::eq()(in_array($ret, [0,1]), true);
 		});
 	}
 
@@ -95,7 +95,7 @@ class RedisConnTest extends Common {
 			$conn->set('key4', 'val4');
 			$ret = $conn->del(['key1', 'key2']);
 			# returns number of deleted keys
-			$this->eq()($ret, 2);
+			self::eq()($ret, 2);
 		});
 	}
 
@@ -123,7 +123,7 @@ class RedisConnTest extends Common {
 		$this->loop(function($conn, $_){
 			$conn->set('key1', 'val1');
 			$ret = $conn->get('key1');
-			$this->eq()($ret, 'val1');
+			self::eq()($ret, 'val1');
 			$conn->del('key1');
 		});
 	}
@@ -134,7 +134,7 @@ class RedisConnTest extends Common {
 			$conn->hset('h', 'key1', 'val1');
 			$conn->hset('h', 'key2', 'val2');
 			$ret = $conn->hget('h', 'key1');
-			$this->eq()($ret, 'val1');
+			self::eq()($ret, 'val1');
 			$conn->del('h');
 		});
 	}
@@ -146,7 +146,7 @@ class RedisConnTest extends Common {
 			$expire = intval($time) + 10;
 			$conn->expireat('key1', $expire);
 			$ttl = $conn->ttl('key1');
-			$this->eq()(in_array($ttl, [9, 10]), true);
+			self::eq()(in_array($ttl, [9, 10]), true);
 			$conn->del('key1');
 		});
 	}

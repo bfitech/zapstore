@@ -150,7 +150,7 @@ class SQLTest extends Common {
 	 */
 	public function test_insert() {
 		$this->loop(function($sql, $type){
-			$eq = $this->eq();
+			$eq = self::eq();
 
 			try {
 				$sql->insert('wrong_table', ['a' => 'b']);
@@ -282,17 +282,18 @@ class SQLTest extends Common {
 	 */
 	public function test_delete() {
 		$this->loop(function($sql){
+			$eq = self::eq();
 			try {
 				$sql->delete("wrong_table", ['name' => 'banana']);
 			} catch(SQLError $err) {
-				$this->eq()($err->code, SQLError::EXECUTION_ERROR);
+				$eq($err->code, SQLError::EXECUTION_ERROR);
 			}
 
 			$sql->delete('test', ['name' => 'banana']);
 			$count = $sql->query("
 				SELECT count(id) AS cnt FROM test
 			")['cnt'];
-			$this->eq()($count, 3);
+			$eq($count, 3);
 		});
 	}
 
@@ -301,7 +302,7 @@ class SQLTest extends Common {
 	 */
 	public function test_update() {
 		$this->loop(function($sql){
-			$eq = $this->eq();
+			$eq = self::eq();
 			try {
 				$sql->update("wrong_table",
 					['name' => 'avocado'],
@@ -333,7 +334,7 @@ class SQLTest extends Common {
 	 */
 	public function test_transaction() {
 		$this->loop(function($sql){
-			$eq = $this->eq();
+			$eq = self::eq();
 
 			try {
 				$sql->query_raw("CREATE TABLE test (id INTEGER)");

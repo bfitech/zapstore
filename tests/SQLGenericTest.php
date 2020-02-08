@@ -24,7 +24,7 @@ class SQLGenericTest extends Common {
 	}
 
 	public function test_exception() {
-		$eq = $this->eq();
+		$eq = self::eq();
 
 		$args = ['dbname' => ':memory:', 'dbtype' => 'sqlite3'];
 		$sql = new SQL($args, self::$logger);
@@ -47,7 +47,7 @@ class SQLGenericTest extends Common {
 	}
 
 	public function test_connection_parameters() {
-		$eq = $this->eq();
+		$eq = self::eq();
 
 		$args = ['dbname' => ':memory:'];
 		try {

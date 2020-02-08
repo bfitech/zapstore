@@ -19,7 +19,7 @@ class SQLite3Test extends Common {
 		$params = self::open_config('sqlite3');
 		$params['dbname'] = realpath($params['dbname']);
 		$sql = new SQLite3($params, $logger);
-		$this->eq()($sql->get_connection_params()['dbtype'], 'sqlite3');
+		self::eq()($sql->get_connection_params()['dbtype'], 'sqlite3');
 	}
 
 }

@@ -18,7 +18,7 @@ class RedisTest extends Common {
 		$logger = new Logger(Logger::ERROR, $logfile);
 		$params = self::open_config('redis');
 		$red = new Redis($params, $logger);
-		$this->eq()(
+		self::eq()(
 			$red->get_connection_params()['redistype'], 'redis');
 	}
 

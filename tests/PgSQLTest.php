@@ -18,7 +18,7 @@ class PgSQLTest extends Common {
 		$logger = new Logger(Logger::ERROR, $logfile);
 		$params = self::open_config('pgsql');
 		$sql = new PgSQL($params, $logger);
-		$this->eq()($sql->get_connection_params()['dbtype'], 'pgsql');
+		self::eq()($sql->get_connection_params()['dbtype'], 'pgsql');
 	}
 
 }
