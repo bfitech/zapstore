@@ -32,7 +32,7 @@ class SQLError extends \Exception {
 	 * @param int $code Errno. See the class constants.
 	 * @param string $message Errmsg.
 	 * @param string $stmt SQL statement.
-	 * @param  array $args Dict of SQL arguments.
+	 * @param array $args Dict of SQL arguments.
 	 */
 	public function __construct(
 		int $code, string $message, string $stmt=null, array $args=[]

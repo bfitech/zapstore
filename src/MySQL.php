@@ -8,17 +8,22 @@ use BFITech\ZapCore\Logger;
 
 
 /**
- * MySQL class.
+ * MySQL wrapper class.
+ *
+ * Do not use directly. Use metapackage `bfitech/zapstore-mysql`
+ * instead for easier dependency management.
+ *
+ * @see https://packagist.org/packages/bfitech/zapstore-mysql
  */
 class MySQL extends SQL {
 
 	/**
 	 * Constructor.
 	 *
-	 * @param array $params SQL connection dict exactly the same with
-	 *     that in the parent class except that 'dbtype' key can be
-	 *     omitted.
+	 * @param array $params Connection dict in SQL::__construct without
+	 *     '`dbtype`' key.
 	 * @param Logger $logger Logger instance.
+	 * @see SQL::__construct
 	 */
 	public function __construct(array $params, Logger $logger=null) {
 		$params['dbtype'] = 'mysql';

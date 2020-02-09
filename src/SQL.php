@@ -38,14 +38,16 @@ class SQL extends SQLConn {
 	 * Constructor.
 	 *
 	 * @param array $params Connection dict with keys:<br>
-	 *     - `dbtype`, database type: one of 'sqlite3', 'mysql',
-	 *       'pgsql'; 'postgresql' is an alias to 'pgsql'
-	 *     - `dbhost`, Unix socket is not accepted, ignored on
-	 *        SQLite3<br>
-	 *     - `dbport`, ignored on SQLite3, do not set to use default<br>
-	 *     - `dbname`, absolute path to database file on SQLite3
-	 *     - `dbuser`, ignored on SQLite3<br>
-	 *     - `dbpass`, ignored on SQLite3<br>
+	 *     - `string` **dbtype**: one of 'sqlite3', 'mysql', 'pgsql';
+	 *       'postgresql' is an alias to 'pgsql'
+	 *     - `string` **dbhost**: database host, Unix socket is not
+	 *        accepted, ignored on SQLite3
+	 *     - `int` **dbport**: database port, ignored on SQLite3, do not
+	 *        set to use default
+	 *     - `string` **dbname**: database name, absolute path to
+	 *        database file on SQLite3
+	 *     - `string` **dbuser**: database user, ignored on SQLite3
+	 *     - `string` **dbpass**: database password, ignored on SQLite3
 	 * @param Logger $logger Logger instance.
 	 */
 	public function __construct(array $params, Logger $logger=null) {
