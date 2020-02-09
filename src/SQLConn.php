@@ -114,7 +114,7 @@ abstract class SQLConn {
 	 *
 	 * Called internally by SQL::__construct. Do not use directly.
 	 */
-	protected function open(array $params, Logger $logger) {
+	final protected function open(array $params, Logger $logger) {
 		self::$logger = $logger;
 		self::$logger->debug("SQL: object instantiated.");
 
