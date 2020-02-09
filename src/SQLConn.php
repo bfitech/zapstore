@@ -14,7 +14,7 @@ use BFITech\ZapCore\Logger;
  */
 abstract class SQLConn {
 
-	private $verified_params = null;
+	private $verified_params = [];
 	private $connection_string = '';
 	private $connection = null;
 
@@ -32,7 +32,7 @@ abstract class SQLConn {
 		$logger = self::$logger;
 
 		if (!in_array($dbtype, ['sqlite3', 'mysql', 'pgsql'])) {
-			$this->verified_params = null;
+			$this->verified_params = [];
 			$logger->error(sprintf(
 				"SQL: database not supported: '%s'.",
 				$dbtype));
@@ -46,7 +46,7 @@ abstract class SQLConn {
 		}
 
 		if (!$dbuser) {
-			$this->verified_params = null;
+			$this->verified_params = [];
 			$logger->error(
 				"SQL: param not supplied: 'dbuser'.");
 			throw new SQLError(
@@ -112,7 +112,7 @@ abstract class SQLConn {
 	/**
 	 * Open connection.
 	 *
-	 * Do not use directly. Use SQL class constructor instead.
+	 * Called internally by SQL::__construct. Do not use directly.
 	 */
 	protected function open(array $params, Logger $logger) {
 		self::$logger = $logger;
@@ -160,7 +160,7 @@ abstract class SQLConn {
 		}
 		$this->connection = null;
 		$this->connection_string = '';
-		$this->verified_params = null;
+		$this->verified_params = [];
 		self::$logger->debug("SQL: connection closed.");
 	}
 
@@ -195,22 +195,21 @@ abstract class SQLConn {
 	/**
 	 * Get database type.
 	 *
-	 * @return string|null Database type connection is open, null
-	 *     otherwise.
+	 * @return string Database type. Empty if connection is not open.
 	 */
-	public function get_dbtype() {
+	public function get_dbtype(): string {
 		if (!$this->verified_params)
-			return null;
+			return '';
 		return $this->verified_params['dbtype'];
 	}
 
 	/**
 	 * Retrieve successful connection parameters.
 	 *
-	 * @return array|null Connection parameters if connection is open,
-	 *     null otherwise.
+	 * @return array Dict of connection parameters. Empty if connection
+	 *     is not open.
 	 */
-	public function get_connection_params() {
+	public function get_connection_params(): array {
 		return $this->verified_params;
 	}
 
@@ -218,10 +217,10 @@ abstract class SQLConn {
 	 * Retrieve successful connection parameters without password.
 	 * Useful for logging.
 	 *
-	 * @return array|null Safe connection parameters if connection is
-	 *     open, null otherwise.
+	 * @return array Dict of safe connection parameters. Empty if
+	 *     connection is not open.
 	 */
-	public function get_safe_params() {
+	public function get_safe_params(): array {
 		$params = $this->get_connection_params();
 		if (isset($params['dbpass']))
 			$params['dbpass'] = 'XxXxXxXxXx';

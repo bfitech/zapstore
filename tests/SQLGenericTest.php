@@ -24,8 +24,7 @@ class SQLGenericTest extends Common {
 	}
 
 	public function test_exception() {
-		$eq = self::eq();
-		$tr = self::tr();
+		extract(self::vars());
 
 		$args = ['dbname' => ':memory:', 'dbtype' => 'sqlite3'];
 		$sql = new SQL($args, self::$logger);
@@ -39,7 +38,13 @@ class SQLGenericTest extends Common {
 			$eq($err->code, SQLError::EXECUTION_ERROR);
 		}
 
+		# close
 		$sql->close();
+		$sm($sql->get_connection_params(), []);
+		$sm($sql->get_dbtype(), '');
+		$sm($sql->get_connection(), null);
+
+		# cannot query
 		$fail = false;
 		try {
 			$sql->query("SELECT datetime() AS now");
