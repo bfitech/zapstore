@@ -225,7 +225,7 @@ class SQLTest extends Common {
 	/**
 	 * @depends test_insert
 	 */
-	public function test_select() {
+	public function test_query() {
 		$this->loop(function($sql){
 			extract(self::vars());
 
@@ -233,6 +233,8 @@ class SQLTest extends Common {
 			$fl($sql->table_exists('#wrong_table'));
 			$fl($sql->table_exists('wrong_table'));
 
+			# not enough args
+			$fail = false;
 			try {
 				$result = $sql->query("
 					SELECT name, val
@@ -240,17 +242,34 @@ class SQLTest extends Common {
 					WHERE name=? AND date=?
 				", ['avocado'], true);
 			} catch(SQLError $err) {
+				$fail = true;
 				$eq($err->code, SQLError::EXECUTION_ERROR);
 			}
+			$tr($fail);
 
 			# table does exist
 			$tr($sql->table_exists('test'));
 
+			# syntax error
+			$fail = false;
 			try {
-				# syntax error
 				$sql->query("SELECT * FRO test ORDER BY id LIMIT 3");
 			} catch(SQLError $err) {
+				$fail = true;
 				$eq($err->code, SQLError::EXECUTION_ERROR);
+			}
+			$tr($fail);
+
+			# wrong type
+			if ($sql->get_dbtype() == 'pgsql') {
+				$fail = false;
+				try {
+					$sql->query("SELECT * FROM test WHERE id=?", ['a']);
+				} catch(SQLError $err) {
+					$fail = true;
+					$eq($err->code, SQLError::EXECUTION_ERROR);
+				}
+				$tr($fail);
 			}
 
 			# single result returns dict
