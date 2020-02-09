@@ -10,6 +10,27 @@ use BFITech\ZapCore\Logger;
 
 /**
  * SQL class.
+ *
+ * This wraps all underlying drivers into unified interface consisting
+ * of most commonly-used SQL statements:
+ *
+ * - SQL::query for `SELECT`
+ * - SQL::insert for basic `INSERT`
+ * - SQL::update for basic `UPDATE`
+ * - SQL::delete for basic `DELETE`
+ * - SQL::query_raw for arbitray SQL statements and you don't really
+ *   care about the query result
+ *
+ * and a few other helpers very useful for executing driver-dependent
+ * DDL statements.
+ *
+ * You normally do not use this class directly. Use the driver-specific
+ * class instead or better yet, their respective metapackage.
+ *
+ * @see SQL::get_connection
+ * @see MySQL
+ * @see PgSQL
+ * @see SQLite3
  */
 class SQL extends SQLConn {
 
@@ -36,31 +57,47 @@ class SQL extends SQLConn {
 	 *
 	 * @return int Unix epoch.
 	 */
-	final public function time() {
-		$type = $this->get_dbtype();
-		if ($type == 'pgsql')
-			return $this->query(
-				"SELECT EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now"
-			)['now'];
-		if ($type == 'mysql')
-			return $this->query(
-				"SELECT UNIX_TIMESTAMP() AS now")['now'];
-		return $this->query(
-			"SELECT strftime('%s', CURRENT_TIMESTAMP) AS now"
-		)['now'];
+	final public function time(): int {
+		$now = -1;
+		switch ($this->get_dbtype()) {
+			case 'pgsql':
+				$now =  $this->query("
+					SELECT
+						EXTRACT('epoch' from CURRENT_TIMESTAMP) AS now
+				")['now'];
+				break;
+			case 'mysql':
+				$now = $this->query("
+					SELECT UNIX_TIMESTAMP() AS now
+				")['now'];
+				break;
+			case 'sqlite3':
+				$now = $this->query("
+					SELECT strftime('%s', CURRENT_TIMESTAMP) AS now
+				")['now'];
+		}
+		return intval($now);
 	}
 
 	/**
 	 * SQL statement fragment.
 	 *
+	 * This method returns certain strings that are necessary to create
+	 * a DDL statement, especially when creating tables.
+	 *
 	 * @param string $part A part sensitive to the database being used,
-	 *     one of these: 'engine', 'index', 'datetime'.
-	 * @param array $args Dict of parameters for $part, for 'datetime'
-	 *     only.
+	 *     one of these:
+	 *     - 'engine': database engine, MySQL only
+	 *     - 'index': primary key auto-increment fragment
+	 *     - 'datetime': date-generating SQL function call; use
+	 *       $args['delta'] to adjust to certain interval
+	 * @param array $args Dict of parameters sensitive to $part.
 	 * @return string Fragment of database-sensitive SQL statement
 	 *     fragment.
 	 */
-	public function stmt_fragment(string $part, array $args=[]) {
+	public function stmt_fragment(
+		string $part, array $args=[]
+	): string {
 		$type = $this->get_dbtype();
 		if ($part == 'engine') {
 			if ($type == 'mysql')
@@ -90,7 +127,7 @@ class SQL extends SQLConn {
 	 * @param int $delta Delta time, in second.
 	 * @return string Delta time clause for use in SQL statements.
 	 */
-	public function stmt_fragment_datetime(int $delta) {
+	public function stmt_fragment_datetime(int $delta): string {
 		$type = $this->get_dbtype();
 		$sign = $delta >= 0 ? '+' : '-';
 		$delta = abs($delta);
@@ -124,7 +161,7 @@ class SQL extends SQLConn {
 	 * @param string $table Table or view name.
 	 * @return bool True if table or view does exist.
 	 */
-	public function table_exists(string $table) {
+	public function table_exists(string $table): bool {
 		# we can't use placeholder for table name
 		if (!preg_match('!^[0-9a-z_]+$!i', $table))
 			return false;

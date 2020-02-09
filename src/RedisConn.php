@@ -124,7 +124,7 @@ class RedisConn extends RedisCall {
 	 * Open connection with ext-redis.
 	 *
 	 * This overrides timeout to 0.2 second from 0 to avoid hanging
-	 * conection due to non-reachable server. Timeout becomes quiet
+	 * connection due to non-reachable server. Timeout becomes quiet
 	 * short but that is the point of using Redis anyway.
 	 */
 	private function connection__redis() {
