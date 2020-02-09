@@ -105,7 +105,7 @@ class SQLTest extends Common {
 					id %s,
 					name VARCHAR(64),
 					value INTEGER,
-					time TIMESTAMP NOT NULL DEFAULT %s 
+					time TIMESTAMP NOT NULL DEFAULT %s
 				) %s",
 				$sql->stmt_fragment('index'),
 				$expire_stmt,

@@ -114,7 +114,7 @@ abstract class SQLConn {
 	 *
 	 * Do not use directly. Use SQL class constructor instead.
 	 */
-	protected function open($params, $logger) {
+	protected function open(array $params, Logger $logger) {
 		self::$logger = $logger;
 		self::$logger->debug("SQL: object instantiated.");
 
@@ -148,10 +148,16 @@ abstract class SQLConn {
 	/**
 	 * Close connection.
 	 *
-	 * No real closing here since PHP is assumed to close connection
-	 * after script execution.
+	 * Closed connection cannot be reopened with SQLConn::open or any
+	 * other way. New connection must be reinstantiated.
+	 *
+	 * @throws SQLError if connection is not open.
 	 */
 	public function close() {
+		if ($this->connection === null) {
+			throw new SQLError(
+				SQLError::CONNECTION_ERROR, "connection not open");
+		}
 		$this->connection = null;
 		$this->connection_string = '';
 		$this->verified_params = null;
@@ -165,6 +171,9 @@ abstract class SQLConn {
 	 *
 	 * Useful for checking whether connection is open and other
 	 * things, e.g. creating custom functions on SQLite3.
+	 *
+	 * @return \\PDO Raw PDO connection instance on opened connection,
+	 *     null otherwise.
 	 */
 	public function get_connection() {
 		return $this->connection;
@@ -174,13 +183,20 @@ abstract class SQLConn {
 	 * Retrieve formatted connection string.
 	 *
 	 * Use this, e.g. for dblink connection on Postgres.
+	 *
+	 * @return string Connection string if connection is open. Empty
+	 *     string otherwise.
+	 * @see https://www.postgresql.org/docs/11/dblink.html
 	 */
-	public function get_connection_string() {
+	public function get_connection_string(): string {
 		return $this->connection_string;
 	}
 
 	/**
 	 * Get database type.
+	 *
+	 * @return string|null Database type connection is open, null
+	 *     otherwise.
 	 */
 	public function get_dbtype() {
 		if (!$this->verified_params)
@@ -190,6 +206,9 @@ abstract class SQLConn {
 
 	/**
 	 * Retrieve successful connection parameters.
+	 *
+	 * @return array|null Connection parameters if connection is open,
+	 *     null otherwise.
 	 */
 	public function get_connection_params() {
 		return $this->verified_params;
@@ -198,6 +217,9 @@ abstract class SQLConn {
 	/**
 	 * Retrieve successful connection parameters without password.
 	 * Useful for logging.
+	 *
+	 * @return array|null Safe connection parameters if connection is
+	 *     open, null otherwise.
 	 */
 	public function get_safe_params() {
 		$params = $this->get_connection_params();

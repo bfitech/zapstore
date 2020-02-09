@@ -18,14 +18,14 @@ use BFITech\ZapCore\Logger;
  * - SQL::insert for basic `INSERT`
  * - SQL::update for basic `UPDATE`
  * - SQL::delete for basic `DELETE`
- * - SQL::query_raw for arbitray SQL statements and you don't really
- *   care about the query result
+ * - SQL::query_raw for arbitray SQL statements
  *
  * and a few other helpers very useful for executing driver-dependent
  * DDL statements.
  *
- * You normally do not use this class directly. Use the driver-specific
- * class instead or better yet, their respective metapackage.
+ * You normally do not use this class directly unless you want to build
+ * a driver-agnostic app. Use the driver-specific class instead or
+ * better yet, their respective metapackages.
  *
  * @see SQL::get_connection
  * @see MySQL
@@ -82,8 +82,8 @@ class SQL extends SQLConn {
 	/**
 	 * SQL statement fragment.
 	 *
-	 * This method returns certain strings that are necessary to create
-	 * a DDL statement, especially when creating tables.
+	 * This method returns certain strings that are necessary for
+	 * creating tables.
 	 *
 	 * @param string $part A part sensitive to the database being used,
 	 *     one of these:
@@ -91,9 +91,38 @@ class SQL extends SQLConn {
 	 *     - 'index': primary key auto-increment fragment
 	 *     - 'datetime': date-generating SQL function call; use
 	 *       $args['delta'] to adjust to certain interval
-	 * @param array $args Dict of parameters sensitive to $part.
+	 * @param array $args Dict of parameters sensitive to $part value.
 	 * @return string Fragment of database-sensitive SQL statement
 	 *     fragment.
+	 *
+	 * #### Example
+	 *
+	 * @code
+	 * <?php
+	 * $sql = new SQL(...);
+	 *
+	 * $sql->query_raw(sprintf("
+	 *     CREATE TABLE test (
+	 *         id %s,
+	 *         name VARCHAR(64),
+	 *         value INTEGER,
+	 *         time TIMESTAMP NOT NULL DEFAULT %s
+	 *     ) %s",
+	 *     $sql->stmt_fragment('index'),
+	 *     $sql->stmt_fragment('datetime', ['delta' => -60]),
+	 *     $sql->stmt_fragment('engine')
+	 * ));
+	 * #
+	 * # on SQLite3, this executes:
+	 * #
+	 * #   CREATE TABLE test (
+	 * #     id INTEGER PRIMARY KEY AUTOINCREMENT,
+	 * #     value INTEGER,
+	 * #     time TIMESTAMP NOT NULL DEFAULT
+	 * #       (datetime('now', '-60 second'))
+	 * #   )
+	 * #
+	 * @endcode
 	 */
 	public function stmt_fragment(
 		string $part, array $args=[]
@@ -123,6 +152,9 @@ class SQL extends SQLConn {
 
 	/**
 	 * SQL datetime fragment.
+	 *
+	 * Do not use this to set default values on MySQL since it can't
+	 * accept function as default values.
 	 *
 	 * @param int $delta Delta time, in second.
 	 * @return string Delta time clause for use in SQL statements.
@@ -223,13 +255,38 @@ class SQL extends SQLConn {
 	/**
 	 * Select query.
 	 *
-	 * @param string $stmt SQL statement.
+	 * @param string $stmt SQL statement with '?' as positional
+	 *     placeholder.
 	 * @param array $args Arguments in numeric array.
 	 * @param bool $multiple Whether returned result contains all rows.
-	 * @return mixed Rows or connection depending on $raw switch.
-	 * @note Since SQLite3 does not enforce type safety, make sure
-	 *     arguments are cast properly before usage.
+	 * @return array Query result.
+	 * @throws SQLError on syntax error, wrong table or column names, or
+	 *     wrong $args types except for SQLite3.
+	 * @note Since SQLite3 does not enforce $args type safety, make sure
+	 *     $args are cast properly before usage.
 	 * @see https://archive.fo/vKBEz#selection-449.0-454.0
+	 *
+	 * #### Example
+	 *
+	 * @code
+	 * <?php
+	 *
+	 * // open connection
+	 * $sql = new PgSQL(...);
+	 *
+	 * // retrieve single row of "SELECT * FROM mytable WHERE id=1"
+	 * $result = $sql->query("
+	 *     SELECT FROM mytable WHERE id=?
+	 * ", [1]);
+	 *
+	 * // retrieve all rows of "SELECT * FROM mytable WHERE id=1"
+	 * $result = $sql->query("
+	 *     SELECT FROM mytable WHERE id=?
+	 * ", [1], true);
+	 *
+	 * // close the connection
+	 * $sql->close();
+	 * @endcode
 	 */
 	final public function query(
 		string $stmt, array $args=[], bool $multiple=null
@@ -247,22 +304,21 @@ class SQL extends SQLConn {
 	/**
 	 * Execute raw query.
 	 *
-	 * This will execute arbitray single SQL queries. Do not execute
-	 * multiple queries at once to avoid undocumented side effects.
-	 * To execute successive raw queries safely, disable autocommit as
-	 * follows:
+	 * This will execute arbitray SQL queries. Do not execute multiple
+	 * queries at once to avoid undocumented side effects. To execute
+	 * successive raw queries safely, disable autocommit as follows:
 	 *
 	 * @code
-	 * $connection = new SQL(...);
+	 * $sql = new SQL(...);
+	 * $conn = $sql->get_connection();
 	 * try {
-	 *     $connection = $this->get_connection();
-	 *     $connection->beginTransaction();
-	 *     $this->query_raw(...);
-	 *     $this->query_raw(...);
-	 *     $this->query_raw(...);
-	 *     $connection->commit();
+	 *     $conn->beginTransaction();
+	 *     $sql->query_raw(...);
+	 *     $sql->query_raw(...);
+	 *     $sql->query_raw(...);
+	 *     $conn->commit();
 	 * } catch(SQLError $e) {
-	 *     $connection->rollBack();
+	 *     $conn->rollBack();
 	 * }
 	 * @endcode
 	 *
@@ -290,8 +346,23 @@ class SQL extends SQLConn {
 	 *     column with PRIMARY KEY attributes. If left null, the whole
 	 *     new row is returned as an array. Using invalid column will
 	 *     throw exception.
-	 * @return int|array Last insert ID or IDs on success. Exception
-	 *     thrown on error.
+	 * @return int|array Last insert ID or IDs on success.
+	 * @throws SQLError on wrong table or column names.
+	 *
+	 * #### Example
+	 *
+	 * @code
+	 * <?php
+	 *
+	 * // open connection
+	 * $sql = new PgSQL(...);
+	 *
+	 * // executes "INSERT INTO mytable (name) VALUES ('quux')"
+	 * $sql->insert('mytable', ['name' => 'quux']);
+	 *
+	 * // close the connection
+	 * $sql->close();
+	 * @endcode
 	 */
 	final public function insert(
 		string $table, array $args=[], string $pkey=null
@@ -330,6 +401,22 @@ class SQL extends SQLConn {
 	 * @param string $table Table name.
 	 * @param array $args Dict of what to UPDATE.
 	 * @param array $where Dict of WHERE to UPDATE.
+	 * @throws SQLError on wrong table name or columns.
+	 *
+	 * #### Example
+	 *
+	 * @code
+	 * <?php
+	 *
+	 * // open connection
+	 * $sql = new MySQL(...);
+	 *
+	 * // executes "UPDATE mytable SET name='quux' WHERE id=1"
+	 * $sql->update('mytable', ['name' => 'quux'], ['id' => 1]);
+	 *
+	 * // close the connection
+	 * $sql->close();
+	 * @endcode
 	 */
 	final public function update(
 		string $table, array $args, array $where=[]
@@ -365,6 +452,22 @@ class SQL extends SQLConn {
 	 *
 	 * @param string $table Table name.
 	 * @param array $where Dict of WHERE to delete.
+	 * @throws SQLError on wrong table name or columns.
+	 *
+	 * #### Example
+	 *
+	 * @code
+	 * <?php
+	 *
+	 * // open connection
+	 * $sql = new SQLite3(...);
+	 *
+	 * // executes "DELETE FROM mytable WHERE id=1"
+	 * $sql->delete('mytable', ['id' => 1]);
+	 *
+	 * // close the connection
+	 * $sql->close();
+	 * @endcode
 	 */
 	final public function delete(string $table, array $where=[]) {
 		$stmt = "DELETE FROM $table";
