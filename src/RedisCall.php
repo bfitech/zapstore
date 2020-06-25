@@ -49,8 +49,8 @@ abstract class RedisCall {
 	 *     the expiration. If you pass an array, it will try to use
 	 *     Redis >= 2.6.12 extended options if value is valid. This is
 	 *     ignored if you're using Predis.
-	 *     @see https://git.io/vHJhl.
 	 * @return bool True if the command is successful.
+	 * @see https://git.io/vHJhl.
 	 */
 	final public function set(
 		string $key, string $value, $options=null
