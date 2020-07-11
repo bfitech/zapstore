@@ -22,12 +22,12 @@ class SQLite3 extends SQL {
 	 *
 	 * @param array $params Connection dict in SQL::__construct without
 	 *     '`dbtype`' key.
-	 * @param Logger $logger Logger instance.
+	 * @param Logger $log Logger instance.
 	 * @see SQL::__construct
 	 */
-	public function __construct(array $params, Logger $logger=null) {
+	public function __construct(array $params, Logger $log=null) {
 		$params['dbtype'] = 'sqlite3';
-		parent::__construct($params, $logger);
+		parent::__construct($params, $log);
 	}
 
 }

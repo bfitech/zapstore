@@ -22,12 +22,12 @@ class Predis extends RedisConn {
 	 *
 	 * @param array $params Connection dict in RedisConn::__construct
 	 *      without '`redistype`' key.
-	 * @param Logger $logger Logger instance.
+	 * @param Logger $log Logger instance.
 	 * @see RedisConn::__construct
 	 */
-	public function __construct(array $params, Logger $logger=null) {
+	public function __construct(array $params, Logger $log=null) {
 		$params['redistype'] = 'predis';
-		parent::__construct($params, $logger);
+		parent::__construct($params, $log);
 	}
 
 }

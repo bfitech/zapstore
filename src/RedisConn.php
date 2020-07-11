@@ -32,11 +32,11 @@ class RedisConn extends RedisCall {
 	 *     - `string` **redispassword**, do not for passwordless server
 	 *     - `int` **redisdatabase**, do not set to use default
 	 *     - `float` **redistimeout**, do not set to use default
-	 * @param Logger $logger Logger instance.
+	 * @param Logger $log Logger instance.
 	 */
-	public function __construct(array $params, Logger $logger=null) {
+	public function __construct(array $params, Logger $log=null) {
 
-		self::$logger = $logger ?? new Logger();
+		self::$logger = $log ?? new Logger();
 		self::$logger->debug("Redis: object instantiated.");
 
 		# initialize params; type cast if necessary since often times we
@@ -87,7 +87,7 @@ class RedisConn extends RedisCall {
 			$this->connection__predis();
 		else
 			$this->connection__redis();
-		parent::__construct($this->connection, $logger);
+		parent::__construct($this->connection, $log);
 	}
 
 	/**

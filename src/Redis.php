@@ -22,12 +22,12 @@ class Redis extends RedisConn {
 	 *
 	 * @param array $params Connection dict in RedisConn::__construct
 	 *      without '`redistype`' key.
-	 * @param Logger $logger Logger instance.
+	 * @param Logger $log Log instance.
 	 * @see RedisConn::__construct
 	 */
-	public function __construct(array $params, Logger $logger=null) {
+	public function __construct(array $params, Logger $log=null) {
 		$params['redistype'] = 'redis';
-		parent::__construct($params, $logger);
+		parent::__construct($params, $log);
 	}
 
 }

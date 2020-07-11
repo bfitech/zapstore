@@ -48,10 +48,10 @@ class SQL extends SQLConn {
 	 *        database file on SQLite3
 	 *     - `string` **dbuser**: database user, ignored on SQLite3
 	 *     - `string` **dbpass**: database password, ignored on SQLite3
-	 * @param Logger $logger Logger instance.
+	 * @param Logger $log Logger instance.
 	 */
-	public function __construct(array $params, Logger $logger=null) {
-		$this->open($params, $logger ?? new Logger);
+	public function __construct(array $params, Logger $log=null) {
+		$this->open($params, $log ?? new Logger);
 	}
 
 	/**

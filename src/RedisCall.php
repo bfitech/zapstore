@@ -28,11 +28,11 @@ abstract class RedisCall {
 	 * Do not call. Use subclass RedisConn instead.
 	 *
 	 * @param object $connection Redis connection.
-	 * @param Logger $logger Logger instance.
+	 * @param Logger $log Logger instance.
 	 */
-	public function __construct($connection, Logger $logger) {
+	public function __construct($connection, Logger $log) {
 		$this->connection = $connection;
-		self::$logger = $logger;
+		self::$logger = $log;
 	}
 
 	/**

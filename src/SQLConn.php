@@ -29,11 +29,11 @@ abstract class SQLConn {
 		$dbuser = $dbpass = $dbname = null;
 		extract($this->verified_params);
 
-		$logger = self::$logger;
+		$log = self::$logger;
 
 		if (!in_array($dbtype, ['sqlite3', 'mysql', 'pgsql'])) {
 			$this->verified_params = [];
-			$logger->error(sprintf(
+			$log->error(sprintf(
 				"SQL: database not supported: '%s'.",
 				$dbtype));
 			throw new SQLError(SQLError::DBTYPE_ERROR,
@@ -47,7 +47,7 @@ abstract class SQLConn {
 
 		if (!$dbuser) {
 			$this->verified_params = [];
-			$logger->error(
+			$log->error(
 				"SQL: param not supplied: 'dbuser'.");
 			throw new SQLError(
 				SQLError::CONNECTION_ARGS_ERROR,
@@ -82,7 +82,7 @@ abstract class SQLConn {
 		extract($this->verified_params);
 
 		$safe_params = $this->get_safe_params();
-		$logger = self::$logger;
+		$log = self::$logger;
 		try {
 			$connection = in_array($dbtype, ['sqlite3', 'pgsql'])
 				? new \PDO($this->get_connection_string())
@@ -90,11 +90,11 @@ abstract class SQLConn {
 					$this->get_connection_string(),
 					$dbuser, $dbpass);
 			$this->connection = $connection;
-			$logger->debug(sprintf(
+			$log->debug(sprintf(
 				"SQL: connection opened: '%s'.",
 				json_encode($safe_params)));
 		} catch (\PDOException $err) {
-			$logger->error(sprintf(
+			$log->error(sprintf(
 				"SQL: connection failed: '%s'.",
 				json_encode($safe_params)));
 			throw new SQLError(SQLError::CONNECTION_ERROR,
@@ -114,8 +114,8 @@ abstract class SQLConn {
 	 *
 	 * Called internally by SQL::__construct. Do not use directly.
 	 */
-	final protected function open(array $params, Logger $logger) {
-		self::$logger = $logger;
+	final protected function open(array $params, Logger $log) {
+		self::$logger = $log;
 		self::$logger->debug("SQL: object instantiated.");
 
 		$verified_params = [];
@@ -132,7 +132,7 @@ abstract class SQLConn {
 
 		foreach (['dbtype', 'dbname'] as $key) {
 			if (!isset($verified_params[$key])) {
-				self::$logger->error(sprintf(
+				$log->error(sprintf(
 					"SQL: param not supplied: '%s'.", $key));
 				throw new SQLError(
 					SQLError::CONNECTION_ARGS_ERROR,

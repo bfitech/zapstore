@@ -20,6 +20,8 @@ class SQLGenericTest extends Common {
 
 	public static function setUpBeforeClass() {
 		$logfile = self::tdir(__FILE__) . '/zapstore-sql.log';
+		if (file_exists($logfile))
+			unlink($logfile);
 		self::$logger = new Logger(Logger::DEBUG, $logfile);
 	}
 
