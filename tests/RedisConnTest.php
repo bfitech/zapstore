@@ -104,8 +104,11 @@ class RedisConnTest extends Common {
 			$eq = self::eq();
 
 			$conn->set('key1', 'val1');
-			# set expire in the past
+			# set expire in 1 second
 			$conn->expire('key1', 1);
+			# wait for 2 seconds for the key to properly destroyed due
+			# to unreliable expire accuracy; causes the tests to
+			# visibly freeze for a while
 			sleep(2);
 			$ret = $conn->get('key1');
 			$eq($ret, false);

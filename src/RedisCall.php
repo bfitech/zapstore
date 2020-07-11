@@ -113,11 +113,25 @@ abstract class RedisCall {
 	/**
 	 * expire
 	 *
-	 * Sets an expiration date (a timeout) on an item.
+	 * Sets for how many seconds longer until a key disappers.
+	 *
+	 * As for the accuracy, per docs:
+	 *
+	 * @code
+	 * In Redis 2.4 the expire might not be pin-point accurate, and
+	 * it could be between zero to one seconds out.
+	 *
+	 * Since Redis 2.6 the expire error is from 0 to 1 milliseconds.
+	 * @endcode
+	 *
+	 * The former may still be the case if redis backend is 2.4. Handle
+	 * with care, especially if you use this library for time-precise
+	 * operations.
 	 *
 	 * @param string $key The key that will disappear.
 	 * @param integer $ttl The key's remaining ttl, in seconds.
 	 * @return bool True on success, false otherwise.
+	 * @see https://archive.fo/ixbKW
 	 */
 	final public function expire(string $key, int $ttl) {
 		$res = $this->connection->expire($key, $ttl);
@@ -198,8 +212,8 @@ abstract class RedisCall {
 	/**
 	 * time
 	 *
-	 * Get Redis server time. Always use server time as a reference to
-	 * do RedisConn::expireat in case of PHP interpreter's or Redis
+	 * Get redis server time. Always use server time as a reference to
+	 * do RedisConn::expireat in case of PHP interpreter's or redis
 	 * server's clock not being properly synched.
 	 *
 	 * @param bool $with_mcs If true, returned time includes microsecond
