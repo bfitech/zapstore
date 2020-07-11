@@ -114,8 +114,8 @@ class SQLGenericTest extends Common {
 		} catch(SQLError $err) {
 			$eq($err->code, SQLError::CONNECTION_ARGS_ERROR);
 		}
-		$args['dbuser'] = 'root';
-		$args['dbhost'] = '0.0.0.1';
+		$args['dbuser'] = 'non_ exitent or Bokren user';
+		$args['dbhost'] = 'localhost';
 		try {
 			$sql = new SQL($args, self::$logger);
 		} catch(SQLError $err) {
